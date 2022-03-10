@@ -73,6 +73,6 @@ def generate_trajec(input_traj, t=0):
     pos, pos_dot, pos_ddt, final_pos = input_traj(t)
     yaw = 0
     yaw_dot = 0
-    cmd_state = {'x': pos, 'x_dot': pos_dot,
+    cmd_state = {'x': pos, 'v': pos_dot,
                  'x_ddt': pos_ddt, 'yaw': yaw, 'yaw_dot': yaw_dot}
     return cmd_state, final_pos

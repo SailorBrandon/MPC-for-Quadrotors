@@ -5,6 +5,7 @@ import cvxpy as cp
 import trajectory
 import numpy.linalg as LA
 import control
+import math
 
 class Controller:
     def __init__(self):
@@ -67,7 +68,7 @@ class PDcontroller(Controller):
 
         # position controller
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
-        error_vel = des_state.get('x_dot') - obs_state.get('v').reshape(3, 1)
+        error_vel = des_state.get('v') - obs_state.get('v').reshape(3, 1)
         rdd_des = des_state.get('x_ddt')
         rdd_cmd = rdd_des + self.Kd @ error_vel + self.Kp @ error_pos
         u1 = self.mass * (self.g + rdd_cmd[2]).reshape(-1, 1)
@@ -89,7 +90,6 @@ class PDcontroller(Controller):
         u2 = self.inertia @ ang_ddt
 
         u = np.vstack((u1, u2))
-        u[0] = 0.295
         control_input = self.generate_control_input(u)
         return control_input, des_state, error_pos
 
@@ -106,7 +106,7 @@ class Linear_MPC(Controller):
             input_traj, cur_time)  # Change the trajectory
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
         
-        x_init = np.block([obs_state.get('x'),  obs_state.get('v'), np.zeros(6)])
+        x_init = self.state2x(obs_state)
         N = 20  # the number of predicted steps
         x = cp.Variable((12, N+1))
         u = cp.Variable((4, N))
@@ -125,9 +125,8 @@ class Linear_MPC(Controller):
             mpc_time += k * self.dt
             des_state_ahead, _ = trajectory.generate_trajec(
                 input_traj, mpc_time)  # Change the trajectory                
-            x_ref_k = np.block([[des_state_ahead.get('x')],
-                                [des_state_ahead.get('x_dot')],
-                                [np.zeros((6, 1))]]).flatten()
+            x_ref_k = self.state2x(des_state_ahead)
+            
             # x_ref_k = np.zeros((12))
             # u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             # print("ref", u_ref_k)
@@ -158,8 +157,8 @@ class Linear_MPC(Controller):
         Ac = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, -self.g, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, -self.g, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
@@ -189,4 +188,40 @@ class Linear_MPC(Controller):
         sysd = control.sample_system(sysc, self.dt, method='bilinear')
         return sysd.A, sysd.B
 
-    def get_x_init(self, obs_state)
+    def state2x(self, state):
+        x = state.get('x').flatten()
+        v = state.get('v').flatten()
+        try:
+            q = state.get('q').flatten()
+            w = state.get('w').flatten()
+            euler_ang = self.euler_from_quaternion(q[0], q[1], q[2], q[3])
+        except:
+            euler_ang = np.zeros(3)
+            euler_ang[2] = state.get('yaw')
+            w = np.zeros(3)
+            w[2] = state.get('yaw_dot')
+        
+        x_init = np.block([x, v, euler_ang, w])
+        return x_init
+ 
+    def euler_from_quaternion(self, x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+    
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+    
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+
+        return np.array([roll_x, pitch_y, yaw_z]) # in radians
