@@ -53,7 +53,7 @@ if __name__=="__main__":
     quad_model.reset()
     simu_freq = 100 # Hz
     ctrl_freq = 50
-    simu_time = 1 # sec
+    simu_time = 3 # sec
     num_iter = int(simu_time * simu_freq)
     cur_time = 0
     quad_controller = controller.Linear_MPC(ctrl_freq)
@@ -68,7 +68,7 @@ if __name__=="__main__":
     square_ang_vel = np.zeros((4, ))
     
     # select trajectory
-    input_traj = trajectory.diamond
+    input_traj = trajectory.oneline
     _, final_pos = trajectory.generate_trajec(input_traj)
 
     # start simulation

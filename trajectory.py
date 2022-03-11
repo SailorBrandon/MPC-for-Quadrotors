@@ -32,7 +32,7 @@ def tj_from_line(start_pos, end_pos, time_ttl, t_c):
 # Diamond Jrajectory
 # Quadrotor navigates through 4 given waypoints
 def diamond(t):
-    T1, T2, T3, T4 = 3, 3, 3, 3
+    T1, T2, T3, T4 = 1, 1, 3, 3
     points = []
     points.append(np.zeros((3, 1)))
     points.append(np.array([[0], [np.sqrt(2)], [np.sqrt(2)]]))
@@ -55,11 +55,11 @@ def diamond(t):
     final_pos = points[-1]
     return pos, pos_dot, pos_ddt, final_pos
 
-def ascent(t):
-    T1 = 3
+def oneline(t):
+    T1 = 1
     points = []
     points.append(np.zeros((3, 1)))
-    points.append(np.array([[0], [0], [3]]))
+    points.append(np.array([[0], [1], [1]]))
     if (0 < t) and (t <= T1):
         pos, pos_dot, pos_ddt = tj_from_line(points[0], points[1], T1, t)
     else:

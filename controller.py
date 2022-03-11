@@ -113,12 +113,12 @@ class Linear_MPC(Controller):
         cost = 0
         constr = []
         subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
-                         [np.zeros((3, 3)), 0*np.eye(3)]])
-        subQ_ang = np.block([[np.eye(3), np.zeros((3, 3))],
-                         [np.zeros((3, 3)), 0*np.eye(3)]])
+                         [np.zeros((3, 3)), 5e1*np.eye(3)]])
+        subQ_ang = np.block([[1.5e4*np.eye(3), np.zeros((3, 3))],
+                         [np.zeros((3, 3)), 0e0*np.eye(3)]])
         Q = np.block([[subQ_pos, np.zeros((6, 6))],
                       [np.zeros((6, 6)), subQ_ang]])
-        R = np.eye(4)
+        R = 1e2*np.eye(4)
         
         mpc_time = cur_time
         for k in range(N):
@@ -140,13 +140,8 @@ class Linear_MPC(Controller):
         # constr.append(x[:, N-1] == x_ref_k)
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(solver=cp.OSQP)
-
         u = u[:, 0].value
-        # if (np.allclose(u, np.zeros(4))):
-        #     u = np.zeros(4)
-        # print("control input:")
-        print(u)
-        # u[0] = 0.295
+        print("control input: ", u)
         control_input = self.generate_control_input(u)
         return control_input, des_state, error_pos
     
