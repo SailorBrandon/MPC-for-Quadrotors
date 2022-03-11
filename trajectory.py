@@ -56,7 +56,7 @@ def diamond(t):
     return pos, pos_dot, pos_ddt, final_pos
 
 def oneline(t):
-    T1 = 1
+    T1 = 0.8
     points = []
     points.append(np.zeros((3, 1)))
     points.append(np.array([[0], [1], [1]]))

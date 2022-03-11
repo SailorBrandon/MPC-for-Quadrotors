@@ -7,6 +7,7 @@ import numpy.linalg as LA
 import control
 import math
 
+
 class Controller:
     def __init__(self):
         self.quad_model = quadrotor.Quadrotor()
@@ -18,7 +19,8 @@ class Controller:
         self.k_thrust = self.quad_model.k_thrust
         self.k_drag = self.quad_model.k_drag
         self.to_TM = self.quad_model.to_TM
-        self.inertia = np.diag([self.quad_model.Ixx, self.quad_model.Iyy, self.quad_model.Izz])
+        self.inertia = np.diag(
+            [self.quad_model.Ixx, self.quad_model.Iyy, self.quad_model.Izz])
 
     def generate_control_input(self, u):
         cmd_motor_speeds = np.zeros((4,))
@@ -36,10 +38,10 @@ class Controller:
             if cmd_motor_speeds[i] > self.rotor_speed_max:
                 cmd_motor_speeds[i] = self.rotor_speed_max
 
-        cmd_thrust = u[0] #thruse
-        cmd_moment[0] = u[1] #moment about p
-        cmd_moment[1] = u[2] #moment about q
-        cmd_moment[2] = u[3] #moment about r
+        cmd_thrust = u[0]  # thruse
+        cmd_moment[0] = u[1]  # moment about p
+        cmd_moment[1] = u[2]  # moment about q
+        cmd_moment[2] = u[3]  # moment about r
 
         control_input = {'cmd_motor_speeds': cmd_motor_speeds,
                          'cmd_thrust': cmd_thrust,
@@ -99,42 +101,45 @@ class Linear_MPC(Controller):
         Controller.__init__(self)
         self.ctrl_freq = ctrl_freq
         self.dt = 1 / self.ctrl_freq
-        self.Ad, self.Bd = self.get_sysd_model()
 
     def control(self, cur_time, obs_state, input_traj):
         des_state, _ = trajectory.generate_trajec(
             input_traj, cur_time)  # Change the trajectory
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
-        
+
         x_init = self.state2x(obs_state)
         N = 20  # the number of predicted steps
         x = cp.Variable((12, N+1))
         u = cp.Variable((4, N))
         cost = 0
         constr = []
+        # subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
+        #                      [np.zeros((3, 3)), 5e1*np.eye(3)]])
+        # subQ_ang = np.block([[1.5e4*np.eye(3), np.zeros((3, 3))],
+        #                      [np.zeros((3, 3)), 0e0*np.eye(3)]])
+        # Q = np.block([[subQ_pos, np.zeros((6, 6))],
+        #               [np.zeros((6, 6)), subQ_ang]])
+        # R = 1e2*np.eye(4)
+
         subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
-                         [np.zeros((3, 3)), 5e1*np.eye(3)]])
+                             [np.zeros((3, 3)), 6e2*np.eye(3)]])
         subQ_ang = np.block([[1.5e4*np.eye(3), np.zeros((3, 3))],
-                         [np.zeros((3, 3)), 0e0*np.eye(3)]])
+                             [np.zeros((3, 3)), 0e0*np.eye(3)]])
         Q = np.block([[subQ_pos, np.zeros((6, 6))],
                       [np.zeros((6, 6)), subQ_ang]])
-        R = 1e2*np.eye(4)
-        
+        R = 1e1*np.eye(4)
         mpc_time = cur_time
         for k in range(N):
             mpc_time += k * self.dt
             des_state_ahead, _ = trajectory.generate_trajec(
-                input_traj, mpc_time)  # Change the trajectory                
+                input_traj, mpc_time)  # Change the trajectory
             x_ref_k = self.state2x(des_state_ahead)
-            
-            # x_ref_k = np.zeros((12))
-            # u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
-            # print("ref", u_ref_k)
             cost += cp.quad_form(x[:, k+1] - x_ref_k, Q)
+            # u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             # cost += cp.quad_form(u[:, k] - u_ref_k, R)
             cost += cp.quad_form(u[:, k], R)
-            constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
-                          self.Bd @ u[:, k])
+            Ad, Bd = self.get_LTV(des_state_ahead)
+            constr.append(x[:, k + 1] == Ad @ x[:, k] + Bd @ u[:, k])
 
         constr.append(x[:, 0] == x_init)
         # constr.append(x[:, N-1] == x_ref_k)
@@ -144,42 +149,45 @@ class Linear_MPC(Controller):
         print("control input: ", u)
         control_input = self.generate_control_input(u)
         return control_input, des_state, error_pos
-    
-    def get_sysd_model(self):
+
+    def get_LTV(self, des_state_ahead):
         num_x = 12
         num_u = 4
+        x9_bar = des_state_ahead.get('yaw')
+        x6_dot_bar = des_state_ahead.get('x_ddt')[2]
+        u1_bar = x6_dot_bar + self.g   # =  real_u1_bar/self.mass
         # Linearized state space model
+        Ixx = self.quad_model.Ixx
+        Iyy = self.quad_model.Iyy
+        Izz = self.quad_model.Izz
         Ac = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, -self.g, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ])
+                       [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, u1_bar*x9_bar, u1_bar, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, -u1_bar, u1_bar*x9_bar, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                       [0, 0, 0, 0, 0, 0, 0, (Iyy-Izz)*x9_bar/Ixx, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, (Izz-Ixx)*x9_bar/Iyy, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ])
         Bc = np.array([[0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [1/self.mass, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 1/self.quad_model.Ixx, 0, 0],
-                             [0, 0, 1/self.quad_model.Iyy, 0],
-                             [0, 0, 0, 1/self.quad_model.Izz], ])
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [1/self.mass, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 1/self.quad_model.Ixx, 0, 0],
+                       [0, 0, 1/self.quad_model.Iyy, 0],
+                       [0, 0, 0, 1/self.quad_model.Izz]])
         Cc = np.eye(num_x)
         Dc = np.zeros((num_x, 4))
-        # # Discretization
-        # Ad = np.exp(Ac * self.dt)
-        # Bd = LA.pinv(Ac) @ (Ad - np.eye(nx)) @ Bc
-        
         sysc = control.ss(Ac, Bc, Cc, Dc)
+        # Discretization
         sysd = control.sample_system(sysc, self.dt, method='bilinear')
         return sysd.A, sysd.B
 
@@ -195,10 +203,10 @@ class Linear_MPC(Controller):
             euler_ang[2] = state.get('yaw')
             w = np.zeros(3)
             w[2] = state.get('yaw_dot')
-        
+
         x_init = np.block([x, v, euler_ang, w])
         return x_init
- 
+
     def euler_from_quaternion(self, x, y, z, w):
         """
         Convert a quaternion into euler angles (roll, pitch, yaw)
@@ -209,14 +217,14 @@ class Linear_MPC(Controller):
         t0 = +2.0 * (w * x + y * z)
         t1 = +1.0 - 2.0 * (x * x + y * y)
         roll_x = math.atan2(t0, t1)
-    
+
         t2 = +2.0 * (w * y - z * x)
         t2 = +1.0 if t2 > +1.0 else t2
         t2 = -1.0 if t2 < -1.0 else t2
         pitch_y = math.asin(t2)
-    
+
         t3 = +2.0 * (w * z + x * y)
         t4 = +1.0 - 2.0 * (y * y + z * z)
         yaw_z = math.atan2(t3, t4)
 
-        return np.array([roll_x, pitch_y, yaw_z]) # in radians
+        return np.array([roll_x, pitch_y, yaw_z])  # in radians
