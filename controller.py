@@ -9,8 +9,10 @@ import math
 
 
 class Controller:
-    def __init__(self):
+    def __init__(self, traj, ctrl_freq):
         self.quad_model = quadrotor.Quadrotor()
+        self.traj = traj
+        self.ctrl_freq = ctrl_freq
         self.mass = self.quad_model.mass
         self.g = self.quad_model.g
         self.arm_length = self.quad_model.arm_length
@@ -50,8 +52,8 @@ class Controller:
 
 
 class PDcontroller(Controller):
-    def __init__(self, ctrl_freq):
-        Controller.__init__(self)
+    def __init__(self, traj, ctrl_freq):
+        Controller.__init__(self, traj, ctrl_freq)
         # hover control gains
         self.Kp = np.diag([10, 10, 200])
         self.Kd = np.diag([10, 10, 3])
@@ -59,15 +61,13 @@ class PDcontroller(Controller):
         self.Kp_t = np.diag([250, 250, 30])
         self.Kd_t = np.diag([30, 30, 7.55])
 
-    def control(self, cur_time, obs_state, input_traj):
+    def control(self, cur_time, obs_state):
         '''
         :param desired state: pos, vel, acc, yaw, yaw_dot
         :param current state: pos, vel, euler, omega
         :return:
         '''
-        des_state, _ = trajectory.generate_trajec(
-            input_traj, cur_time)  # Change the trajectory
-
+        des_state = self.traj.get_des_state(cur_time) 
         # position controller
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
         error_vel = des_state.get('v') - obs_state.get('v').reshape(3, 1)
@@ -92,19 +92,19 @@ class PDcontroller(Controller):
         u2 = self.inertia @ ang_ddt
 
         u = np.vstack((u1, u2))
+        # print("control input: ", u)
         control_input = self.generate_control_input(u)
-        return control_input, des_state, error_pos
+        return control_input, error_pos
 
 
 class Linear_MPC(Controller):
-    def __init__(self, ctrl_freq):
-        Controller.__init__(self)
+    def __init__(self, traj, ctrl_freq):
+        Controller.__init__(self, traj, ctrl_freq)
         self.ctrl_freq = ctrl_freq
         self.dt = 1 / self.ctrl_freq
 
-    def control(self, cur_time, obs_state, input_traj):
-        des_state, _ = trajectory.generate_trajec(
-            input_traj, cur_time)  # Change the trajectory
+    def control(self, cur_time, obs_state):
+        des_state = self.traj.get_des_state(cur_time)
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
 
         x_init = self.state2x(obs_state)
@@ -122,17 +122,16 @@ class Linear_MPC(Controller):
         # R = 1e2*np.eye(4)
 
         subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 6e2*np.eye(3)]])
-        subQ_ang = np.block([[1.5e4*np.eye(3), np.zeros((3, 3))],
+                             [np.zeros((3, 3)), 0e0*np.eye(3)]])
+        subQ_ang = np.block([[1.5e5*np.eye(3), np.zeros((3, 3))],
                              [np.zeros((3, 3)), 0e0*np.eye(3)]])
         Q = np.block([[subQ_pos, np.zeros((6, 6))],
                       [np.zeros((6, 6)), subQ_ang]])
-        R = 1e1*np.eye(4)
+        R = 0e1*np.eye(4)
         mpc_time = cur_time
         for k in range(N):
             mpc_time += k * self.dt
-            des_state_ahead, _ = trajectory.generate_trajec(
-                input_traj, mpc_time)  # Change the trajectory
+            des_state_ahead = self.traj.get_des_state(mpc_time)
             x_ref_k = self.state2x(des_state_ahead)
             cost += cp.quad_form(x[:, k+1] - x_ref_k, Q)
             # u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
@@ -146,9 +145,9 @@ class Linear_MPC(Controller):
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(solver=cp.OSQP)
         u = u[:, 0].value
-        print("control input: ", u)
+        # print("control input: ", u)
         control_input = self.generate_control_input(u)
-        return control_input, des_state, error_pos
+        return control_input, error_pos
 
     def get_LTV(self, des_state_ahead):
         num_x = 12

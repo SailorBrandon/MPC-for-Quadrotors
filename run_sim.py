@@ -53,29 +53,26 @@ if __name__=="__main__":
     quad_model.reset()
     simu_freq = 100 # Hz
     ctrl_freq = 50
-    simu_time = 3 # sec
-    num_iter = int(simu_time * simu_freq)
-    cur_time = 0
-    quad_controller = controller.Linear_MPC(ctrl_freq)
+    traj = trajectory.Trajectory("diamond")
+    quad_controller = controller.PDcontroller(traj, ctrl_freq)
     
     real_trajectory = {'x': [], 'y': [], 'z': []}
     des_trajectory = {'x': [], 'y': [], 'z': []}
     
     # initialize performance matrics
-    accu_error_pos = np.zeros((3, 1))
-    error_pos = np.zeros((3, 1))
-    total_time = 0
-    square_ang_vel = np.zeros((4, ))
+    # accu_error_pos = np.zeros((3, 1))
+    # error_pos = np.zeros((3, 1))
+    # total_time = 0
+    # square_ang_vel = np.zeros((4, ))
     
-    # select trajectory
-    input_traj = trajectory.oneline
-    _, final_pos = trajectory.generate_trajec(input_traj)
-
-    # start simulation
+    simu_time = 10 # sec
+    cur_time = 0
     dt = 1 / simu_freq
+    num_iter = int(simu_time * simu_freq)
     for i in range(num_iter):
+        des_state = traj.get_des_state(cur_time)
         if i % (int(simu_freq / ctrl_freq)) == 0:
-            control_input, des_state, error_pos = quad_controller.control(cur_time, quad_model.state, input_traj)
+            control_input, error_pos = quad_controller.control(cur_time, quad_model.state)
         cmd_rotor_speeds = control_input["cmd_motor_speeds"]
         obs, _, _, _ = quad_model.step(cmd_rotor_speeds)
         cur_time += dt
@@ -86,8 +83,8 @@ if __name__=="__main__":
         # else:
         #     total_time = simu_time
         # record performance matrics
-        accu_error_pos += error_pos * dt
-        square_ang_vel += cmd_rotor_speeds ** 2 * dt
+        # accu_error_pos += error_pos * dt
+        # square_ang_vel += cmd_rotor_speeds ** 2 * dt
         # record trajectories for visualization
         real_trajectory['x'].append(obs['x'][0])
         real_trajectory['y'].append(obs['x'][1])
@@ -97,10 +94,9 @@ if __name__=="__main__":
         des_trajectory['z'].append(des_state['x'][2][0])
     
     # Print three required criterions
-    print("Tracking performance: ", np.sum(accu_error_pos**2))
-
-    print("Total time needed: ", total_time)
-    print("Sum of square of angular velocities: ", np.sum(square_ang_vel))
+    # print("Tracking performance: ", np.sum(accu_error_pos**2))
+    # print("Total time needed: ", total_time)
+    # print("Sum of square of angular velocities: ", np.sum(square_ang_vel))
 
     # Visualization
     start_ani = 1
