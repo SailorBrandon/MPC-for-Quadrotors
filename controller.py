@@ -122,9 +122,9 @@ class Linear_MPC(Controller):
         # R = 1e2*np.eye(4)
 
         subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 0e0*np.eye(3)]])
-        subQ_ang = np.block([[1.5e5*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 0e0*np.eye(3)]])
+                             [np.zeros((3, 3)), 1e4*np.eye(3)]])
+        subQ_ang = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
+                             [np.zeros((3, 3)), 3e3*np.eye(3)]])
         Q = np.block([[subQ_pos, np.zeros((6, 6))],
                       [np.zeros((6, 6)), subQ_ang]])
         R = 0e1*np.eye(4)
@@ -143,7 +143,7 @@ class Linear_MPC(Controller):
         constr.append(x[:, 0] == x_init)
         # constr.append(x[:, N-1] == x_ref_k)
         problem = cp.Problem(cp.Minimize(cost), constr)
-        problem.solve(solver=cp.OSQP)
+        problem.solve(solver=cp.OSQP,verbose=True,max_iter=20000)
         u = u[:, 0].value
         # print("control input: ", u)
         control_input = self.generate_control_input(u)
@@ -153,6 +153,8 @@ class Linear_MPC(Controller):
         num_x = 12
         num_u = 4
         x9_bar = des_state_ahead.get('yaw')
+        sinx9=np.sin(x9_bar)
+        cosx9=np.cos(x9_bar)
         x6_dot_bar = des_state_ahead.get('x_ddt')[2]
         u1_bar = x6_dot_bar + self.g   # =  real_u1_bar/self.mass
         # Linearized state space model
@@ -162,14 +164,14 @@ class Linear_MPC(Controller):
         Ac = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, u1_bar*x9_bar, u1_bar, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, -u1_bar, u1_bar*x9_bar, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, (u1_bar*sinx9)[0], (u1_bar*cosx9)[0], 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, (-u1_bar*cosx9)[0], (u1_bar*sinx9)[0], 0, 0, 0, 0],
                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                       [0, 0, 0, 0, 0, 0, 0, (Iyy-Izz)*x9_bar/Ixx, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, (Izz-Ixx)*x9_bar/Iyy, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, (-Iyy+Izz)*x9_bar/Ixx, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, (-Izz+Ixx)*x9_bar/Iyy, 0, 0, 0, 0, 0],
                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ])
         Bc = np.array([[0, 0, 0, 0],
                        [0, 0, 0, 0],

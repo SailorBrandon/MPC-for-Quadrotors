@@ -24,6 +24,9 @@ def visualization(real_trajectory, des_trajectory):
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
     ax1.set_zlabel('z')
+    ax1.set_xlim(-2,2)
+    ax1.set_ylim(-2,2)
+    ax1.set_zlim(-0,2.0)
     ax1.set_title('3D animate')
     ax1.view_init(35, 35)
     ax1.legend(loc='lower right')
@@ -53,8 +56,8 @@ if __name__=="__main__":
     quad_model.reset()
     simu_freq = 100 # Hz
     ctrl_freq = 50
-    traj = trajectory.Trajectory("diamond")
-    quad_controller = controller.PDcontroller(traj, ctrl_freq)
+    traj = trajectory.Trajectory("oneline")
+    quad_controller = controller.Linear_MPC(traj, ctrl_freq)
     
     real_trajectory = {'x': [], 'y': [], 'z': []}
     des_trajectory = {'x': [], 'y': [], 'z': []}
