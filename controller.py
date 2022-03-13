@@ -139,13 +139,16 @@ class Linear_MPC(Controller):
             # print(des_state_ahead['yaw'],des_state_ahead['yaw_dot'])
             desired_x.append(_pack_state(des_state_ahead))
             x_ref_k = self.state2x(des_state_ahead)
+            
             cost += cp.quad_form(x[:, k+1] - x_ref_k, Q)
             # u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             # cost += cp.quad_form(u[:, k] - u_ref_k, R)
             # constr.append(cp.norm(x[7:9, k+1],'inf') <= 0.5)
             cost += cp.quad_form(u[:, k], R)
             Ad, Bd = self.get_LTV(des_state_ahead,x_init,k)
-            constr.append(x[:, k + 1] == Ad @ x[:, k] + Bd @ u[:, k])
+            gravity=np.zeros([12,])
+            gravity[5]=self.g
+            constr.append(x[:, k + 1] == Ad @ x[:, k] + Bd @ u[:, k]-self.dt*gravity)
 
         constr.append(x[:, 0] == x_init)
         # constr.append(x[:, N-1] == x_ref_k)

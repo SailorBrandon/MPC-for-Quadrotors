@@ -12,7 +12,30 @@ class Trajectory:
             self.input_traj = self.oneline
         elif input_traj == "hover":
             self.input_traj = self.hover
-
+        elif input_traj == "circle":
+            self.input_traj = self.circle
+    def circle(self,t):
+        T = 14
+        radius = 3
+        dt = 0.01
+        if t > T:
+            pos = np.array([radius, 0, 2.5])
+            vel = np.array([0,0,0])
+            acc = np.array([0,0,0])
+        else:
+            angle,_,_ = self.tj_from_line(0, 2*np.pi, T, t)
+            angle2,_,_ = self.tj_from_line(0, 2*np.pi, T, t+dt)
+            angle3,_,_ = self.tj_from_line(0, 2*np.pi, T, t+2*dt)
+            pos = np.array([radius*(np.cos(angle)-1),radius*np.sin(angle),2.5*angle/(2*np.pi)])
+            pos2 = np.array([radius*(np.cos(angle2)-1),radius*np.sin(angle2),2.5*angle2/(2*np.pi)])
+            pos3 = np.array([radius*(np.cos(angle3)-1),radius*np.sin(angle3),2.5*angle3/(2*np.pi)])
+            vel = (pos2- pos)/dt
+            vel2 = (pos3- pos2)/dt
+            acc = (vel2 - vel)/dt
+            pos=pos.reshape([-1,1])
+            vel=vel.reshape([-1,1])
+            acc=acc.reshape([-1,1])
+        return pos, vel, acc
     def diamond(self, t):
         T1, T2, T3, T4 = 3.5, 3.5, 3.5, 3.5
         points = []
@@ -93,7 +116,7 @@ class Trajectory:
         pos, vel, acc = self.input_traj(t)
         yaw, yaw_dot = self.get_yaw(vel[:2].flatten())
         des_state = {'x': pos, 'v': vel,
-                     'x_ddt': acc, 'yaw': 0, 'yaw_dot': 0}
+                     'x_ddt': acc, 'yaw': yaw, 'yaw_dot': yaw_dot}
         return des_state
 # trajectory=Trajectory('diamond')
 
