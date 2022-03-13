@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.linalg as LA
-
+import matplotlib.pyplot as plt
 
 class Trajectory:
     def __init__(self, input_traj="hover"):
@@ -14,7 +14,7 @@ class Trajectory:
             self.input_traj = self.hover
 
     def diamond(self, t):
-        T1, T2, T3, T4 = 3, 3, 3, 3
+        T1, T2, T3, T4 = 3.5, 3.5, 3.5, 3.5
         points = []
         points.append(np.zeros((3, 1)))
         points.append(np.array([[0], [np.sqrt(2)], [np.sqrt(2)]]))
@@ -39,7 +39,7 @@ class Trajectory:
         return pos, vel, acc
 
     def oneline(self, t):
-        T1 = 0.8
+        T1 = 5.0
         points = []
         points.append(np.zeros((3, 1)))
         points.append(np.array([[0], [1], [1]]))
@@ -93,5 +93,36 @@ class Trajectory:
         pos, vel, acc = self.input_traj(t)
         yaw, yaw_dot = self.get_yaw(vel[:2].flatten())
         des_state = {'x': pos, 'v': vel,
-                     'x_ddt': acc, 'yaw': yaw, 'yaw_dot': yaw_dot}
+                     'x_ddt': acc, 'yaw': 0, 'yaw_dot': 0}
         return des_state
+# trajectory=Trajectory('diamond')
+
+# t=np.arange(0,17,0.01)
+# x=[]
+# v=[]
+# a=[]
+# for i in t:
+#     des=trajectory.get_des_state(i)
+#     x.append(des['x'])
+#     v.append(des['v'])
+#     a.append(des['x_ddt'])
+# x=np.array(x)
+# v=np.array(v)
+# a=np.array(a)
+# i = 1
+# plt.subplot(3, 1, 1)
+# plt.plot(t, x[:, i])
+# plt.xlabel('t')
+# plt.ylabel('state value')
+# plt.title('x')
+# plt.subplot(3, 1, 2)
+# plt.plot(t, v[:, i])
+# plt.xlabel('t')
+# plt.ylabel('state value')
+# plt.title('v')
+# plt.subplot(3, 1, 3)
+# plt.plot(t, a[:, i])
+# plt.xlabel('t')
+# plt.ylabel('state value')
+# plt.title('acc')
+# plt.show()

@@ -177,10 +177,10 @@ def _pack_state(state):
     Convert a state dict to Quadrotor's private internal vector representation.
     """
     s = np.zeros((13,))
-    s[0:3] = state['x']
-    s[3:6] = state['v']
-    s[6:10] = state['q']
-    s[10:13] = state['w']
+    s[0:3] = state['x'].squeeze()
+    s[3:6] = state['v'].squeeze()
+    s[6:10] = state['q'].squeeze()
+    s[10:13] = state['w'].squeeze()
     return s
 
 
