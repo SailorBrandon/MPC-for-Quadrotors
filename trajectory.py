@@ -116,7 +116,7 @@ class Trajectory:
         pos, vel, acc = self.input_traj(t)
         yaw, yaw_dot = self.get_yaw(vel[:2].flatten())
         des_state = {'x': pos, 'v': vel,
-                     'x_ddt': acc, 'yaw': yaw, 'yaw_dot': yaw_dot}
+                     'x_ddt': acc, 'yaw':0, 'yaw_dot': 0}
         return des_state
 # trajectory=Trajectory('diamond')
 

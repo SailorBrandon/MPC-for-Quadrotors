@@ -56,7 +56,7 @@ if __name__=="__main__":
     quad_model.reset()
     simu_freq = 100 # Hz
     ctrl_freq = 50
-    traj = trajectory.Trajectory("circle")
+    traj = trajectory.Trajectory("diamond")
     quad_controller = controller.Linear_MPC(traj, ctrl_freq)
     # quad_controller = controller.PDcontroller(traj, ctrl_freq)
     real_trajectory = {'x': [], 'y': [], 'z': []}
