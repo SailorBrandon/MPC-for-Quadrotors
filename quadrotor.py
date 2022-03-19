@@ -2,7 +2,7 @@ import numpy as np
 from numpy.linalg import inv, norm
 import scipy.integrate
 from scipy.spatial.transform import Rotation
-
+import control
 
 def quat_dot(quat, omega):
     """
@@ -151,6 +151,39 @@ class Quadrotor():
         s_dot[10:13] = w_dot
 
         return s_dot
+    
+    def get_dLTI(self, dt):
+        num_x = 12
+        Ac = np.array([[0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, (-self.g), 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ])
+        Bc = np.array([[0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [1/self.mass, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 0, 0, 0],
+                       [0, 1/self.Ixx, 0, 0],
+                       [0, 0, 1/self.Iyy, 0],
+                       [0, 0, 0, 1/self.Izz]])
+        Cc = np.eye(num_x)
+        Dc = np.zeros((num_x, 4))
+        sysc = control.ss(Ac, Bc, Cc, Dc)
+        # Discretization
+        sysd = control.sample_system(sysc, dt, method='bilinear')
+        return sysd.A, sysd.B
 
     @classmethod
     def rotate_k(cls, q):
@@ -190,3 +223,4 @@ def _unpack_state(s):
     """
     state = {'x': s[0:3], 'v': s[3:6], 'q': s[6:10], 'w': s[10:13]}
     return state
+
