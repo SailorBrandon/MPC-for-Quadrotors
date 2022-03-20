@@ -106,6 +106,7 @@ class Linear_MPC(Controller):
         self.dt = 1 / self.ctrl_freq
         self.Ad, self.Bd = self.quad_model.get_dLTI(self.dt)
         self.N = 5  # the number of predicted steps TODO
+        # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
         subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
                              [np.zeros((3, 3)), 1e3*np.eye(3)]])
         subQ_ang = np.block([[5e2*np.eye(3), np.zeros((3, 3))],
@@ -125,17 +126,20 @@ class Linear_MPC(Controller):
         cost = 0
         constr = []
         mpc_time = cur_time
-        for k in range(self.N):
-            mpc_time += (k+1) * self.dt
+        for k in range(self.N+1): 
+            mpc_time += k * self.dt
             des_state_ahead = self.traj.get_des_state(mpc_time)
             x_ref_k = self.state2x(des_state_ahead)
+            if k == self.N:
+                cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
+                break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             cost += cp.quad_form(u[:, k], self.R)
             gravity = np.zeros([12, ])
             gravity[5] = self.g
             constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
                           self.Bd @ u[:, k]-self.dt*gravity)
-        cost += cp.quad_form(x[:, self.N], self.P)
+        
         constr.append(x[:, 0] == x_init)
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(verbose=False)
@@ -184,54 +188,3 @@ class Linear_MPC(Controller):
         yaw_z = math.atan2(t3, t4)
 
         return np.array([roll_x, pitch_y, yaw_z])  # in radians
-
-
-
-
-
-# def visualize_x(desired_x,optimized_x,dt):
-#     t=np.arange(desired_x.shape[0])*dt
-#     i=6
-#     plt.subplot(2, 3, 1)
-#     plt.plot(t,desired_x[:,i])
-#     plt.plot(t,optimized_x[:,i])
-#     plt.xlabel('t')
-#     plt.ylabel('state value')
-#     plt.title('x')
-#     plt.legend(['desired', 'optimized'])
-#     plt.subplot(2, 3, 2)
-#     plt.plot(t, desired_x[:, i+1])
-#     plt.plot(t, optimized_x[:, i+1])
-#     plt.xlabel('t')
-#     plt.ylabel('state value')
-#     plt.title('y')
-#     plt.legend(['desired', 'optimized'])
-#     plt.subplot(2, 3, 3)
-#     plt.plot(t, desired_x[:, i+2])
-#     plt.plot(t, optimized_x[:,i+2])
-#     plt.xlabel('t')
-#     plt.ylabel('state value')
-#     plt.title('z')
-#     plt.legend(['desired', 'optimized'])
-#     plt.subplot(2, 3, 4)
-#     plt.plot(t, desired_x[:, i+3])
-#     plt.plot(t, optimized_x[:, i+3])
-#     plt.xlabel('t')
-#     plt.ylabel('state value')
-#     plt.title('vx')
-#     plt.legend(['desired', 'optimized'])
-#     plt.subplot(2, 3, 5)
-#     plt.plot(t, desired_x[:, i+4])
-#     plt.plot(t, optimized_x[:, i+4])
-#     plt.xlabel('t')
-#     plt.ylabel('state value')
-#     plt.title('vy')
-#     plt.legend(['desired', 'optimized'])
-#     plt.subplot(2, 3, 6)
-#     plt.plot(t, desired_x[:, i+5])
-#     plt.plot(t, optimized_x[:, i+5])
-#     plt.xlabel('t')
-#     plt.ylabel('state value')
-#     plt.title('vz')
-#     plt.legend(['desired', 'optimized'])
-#     plt.show()
