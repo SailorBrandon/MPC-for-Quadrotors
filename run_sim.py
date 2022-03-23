@@ -68,7 +68,7 @@ if __name__=="__main__":
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
     
-    simu_time = 5 # sec
+    simu_time = 13 # sec
     cur_time = 0
     dt = 1 / simu_freq
     num_iter = int(simu_time * simu_freq)
