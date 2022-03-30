@@ -106,6 +106,11 @@ class Linear_MPC(Controller):
         self.ctrl_freq = ctrl_freq
         self.dt = 1 / self.ctrl_freq
         self.Ad, self.Bd = self.quad_model.get_dLTI(self.dt)
+        self.B_dist = np.block([[np.zeros((3, 3))],
+                                 [np.eye(3)],
+                                 [np.zeros((3, 3))],
+                                 [np.zeros((3, 3))]])
+        self.disturbance_observer = Dist_Observer(self.Ad, self.Bd, self.B_dist)
         self.N = 7  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
         subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
@@ -115,70 +120,75 @@ class Linear_MPC(Controller):
         self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
                            [np.zeros((6, 6)), subQ_ang]])
         self.R = 1e1*np.eye(4)
-        self.P,self.K = self.get_terminal_cost(self.Ad, self.Bd, self.Q, self.R)
+        self.P, self.K = self.get_terminal_cost(
+            self.Ad, self.Bd, self.Q, self.R)
 
-        self.Ak=self.Ad-self.Bd@self.K
-        self.Hx = np.array([[0, 0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0],#x,y acc constraints
-                       [0, 0, 0, 0, 0, 0, (-self.g), 0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0, 0, 0, -self.g, 0, 0, 0, 0],#x,y acc constraints
-                       [0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0, 0]])
+        self.Ak = self.Ad-self.Bd@self.K
+        self.Hx = np.array([[0, 0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0],  # x,y acc constraints
+                            [0, 0, 0, 0, 0, 0, (-self.g), 0, 0, 0, 0, 0],
+                            # x,y acc constraints
+                            [0, 0, 0, 0, 0, 0, 0, -self.g, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0, 0]])
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
-                            [-1/self.mass, 0, 0, 0]])#z acc constraints
-        self.h=np.array([[2.5*self.g],#z acc constraints
-                       [2.5*self.g],
-                       [1.5*self.g],#x y acc constraints
-                       [1.5*self.g],
-                       [1.5*self.g],
-                       [1.5*self.g]])
-        self.terminal_set=Terminal_set(self.Hx, self.Hu, self.K, self.Ak,self.h)
-        self.Xf_nr=self.terminal_set.Xf_nr
-
+                            [-1/self.mass, 0, 0, 0]])  # z acc constraints
+        self.h = np.array([[2.5*self.g],  # z acc constraints
+                           [2.5*self.g],
+                           [1.5*self.g],  # x y acc constraints
+                           [1.5*self.g],
+                           [1.5*self.g],
+                           [1.5*self.g]])
+        self.terminal_set = Terminal_set(
+            self.Hx, self.Hu, self.K, self.Ak, self.h)
+        self.Xf_nr = self.terminal_set.Xf_nr
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
 
         x_init = self.state2x(obs_state)
+        print(x_init)
+        print('================')
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
         cost = 0
         constr = []
         mpc_time = cur_time
-        print(cur_time)
-        desired_x=[]
-        for k in range(self.N+1): 
+        desired_x = []
+        d_hat = self.disturbance_observer.d_hat
+        for k in range(self.N+1):
             mpc_time += k * self.dt
             des_state_ahead = self.traj.get_des_state(mpc_time)
             x_ref_k = self.state2x(des_state_ahead)
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, 0.1*self.P)
-                constr.append(self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                constr.append(
+                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             cost += cp.quad_form(u[:, k], self.R)
-            
+
             constr.append(self.Hx @ x[:, k] <= self.h[2:].squeeze())
             constr.append(self.Hu @ u[:, k] <= self.h[:2].squeeze())
             gravity = np.zeros([12, ])
             gravity[5] = self.g
             constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
-                          self.Bd @ u[:, k]-self.dt*gravity)
-        
+                          self.Bd @ u[:, k]-self.dt*gravity + (self.B_dist@d_hat).flatten())
+
         constr.append(x[:, 0] == x_init)
         problem = cp.Problem(cp.Minimize(cost), constr)
-        problem.solve(verbose=0)
+        problem.solve(verbose=False)
         u = u[:, 0].value
-        # print(u)
+        print(x[:, 1].value)
         control_input = self.generate_control_input(u)
-        optimized_x=(x[:, :].value).T
+        optimized_x = (x[:, :].value).T
         # if ((int(cur_time*100)/100)%0.5 < 0.01): #and cur_time>2.8:
         #     visualize_x(np.array(desired_x),optimized_x,self.dt)
         return control_input, error_pos
 
     def get_terminal_cost(self, Ad, Bd, Q, R):
         P, L, G = control.dare(Ad, Bd, Q, R)
-        return P,G
+        return P, G
 
     def state2x(self, state):
         x = state.get('x').flatten()
@@ -218,12 +228,35 @@ class Linear_MPC(Controller):
 
         return np.array([roll_x, pitch_y, yaw_z])  # in radians
 
-def visualize_x(desired_x,optimized_x,dt):
-    t=np.arange(desired_x.shape[0])*dt
-    i=0
+
+class Dist_Observer:
+    def __init__(self, A, B, B_dist, C=np.eye(12), C_dist=np.zeros((12, 3))):
+        self.x_hat = np.zeros((12, 1))
+        self.d_hat = np.zeros((3, 1))
+        self.A_sq = np.block([[A, B_dist],
+                              [np.zeros((3, 12)), np.eye(3)]])
+        self.B_sq = np.block([[B],
+                              [np.zeros((3, 4))]])
+        self.C_sq = np.block([C, C_dist])
+        eig = [0.5 for i in range(7)] + [0.7 for i in range(8)]
+        self.L = control.place(self.A_sq.T, self.C_sq.T, eig).T
+
+    def update(self, u, y):
+        exd_state = np.block([[self.x_hat],
+                              [self.d_hat]])
+        exd_state = self.A_sq@exd_state + \
+            self.B_sq@u.reshape(-1, 1) + \
+            self.L@(y.reshape(-1, 1) - self.C_sq@exd_state)
+        self.x_hat = exd_state[:12]
+        self.d_hat = exd_state[12:]
+
+
+def visualize_x(desired_x, optimized_x, dt):
+    t = np.arange(desired_x.shape[0])*dt
+    i = 0
     plt.subplot(2, 3, 1)
-    plt.plot(t,desired_x[:,i])
-    plt.plot(t,optimized_x[:,i])
+    plt.plot(t, desired_x[:, i])
+    plt.plot(t, optimized_x[:, i])
     plt.xlabel('t')
     plt.ylabel('state value')
     plt.title('x')
@@ -237,7 +270,7 @@ def visualize_x(desired_x,optimized_x,dt):
     plt.legend(['desired', 'optimized'])
     plt.subplot(2, 3, 3)
     plt.plot(t, desired_x[:, i+2])
-    plt.plot(t, optimized_x[:,i+2])
+    plt.plot(t, optimized_x[:, i+2])
     plt.xlabel('t')
     plt.ylabel('state value')
     plt.title('z')
