@@ -9,7 +9,7 @@ import numpy.linalg as LA
 import control
 import math
 import matplotlib.pyplot as plt
-
+from nonlinear_mpc_solver import *
 
 class Controller:
     def __init__(self, traj, ctrl_freq):
@@ -43,7 +43,7 @@ class Controller:
             if cmd_motor_speeds[i] > self.rotor_speed_max:
                 cmd_motor_speeds[i] = self.rotor_speed_max
 
-        cmd_thrust = u[0]  # thruse
+        cmd_thrust = u[0]  # thrust
         cmd_moment[0] = u[1]  # moment about p
         cmd_moment[1] = u[2]  # moment about q
         cmd_moment[2] = u[3]  # moment about r
@@ -95,11 +95,84 @@ class PDcontroller(Controller):
         u2 = self.inertia @ ang_ddt
 
         u = np.vstack((u1, u2))
-        # print("control input: ", u)
+        print("control input: ", u)
         control_input = self.generate_control_input(u)
         return control_input, error_pos
 
+class NonLinear_MPC(Controller):
+    def __init__(self, traj, ctrl_freq):
+        super().__init__(traj, ctrl_freq)
+        self.param = MPC_Formulation_Param()
+        self.param.dt = 1 / self.ctrl_freq
+        self.solver = acados_mpc_solver_generation(self.param)
 
+    def control(self, cur_time, obs_state):
+        des_state = self.traj.get_des_state(cur_time)
+        error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
+
+        x_init = self.state2x(obs_state)
+        self.solver.set(0,"lbx", x_init)
+        self.solver.set(0,"ubx", x_init)
+
+        mpc_time = cur_time
+        for k in range(self.param.N):
+            mpc_time += k * self.param.dt
+            des_state_ahead = self.traj.get_des_state(mpc_time)
+            x_ref_k = self.state2x(des_state_ahead)
+            u_ref_k = np.array([self.g, 0, 0, 0])
+            yref = np.block([x_ref_k, u_ref_k])
+            self.solver.set(k, "yref", yref)
+
+        status = self.solver.solve()
+        if status != 0:
+            print("acados returned status {} in closed loop iteration {}.".format(status, cur_time))
+        
+        u = self.solver.get(0, "u")
+        u[0] *= self.mass
+        x = self.solver.get(0, "x")
+        print(u)
+        print(x)
+        control_input = self.generate_control_input(u)
+        return control_input, error_pos
+    
+    def state2x(self, state):
+        x = state.get('x').flatten()
+        v = state.get('v').flatten()
+        try:
+            q = state.get('q').flatten()
+            w = state.get('w').flatten()
+            euler_ang = self.euler_from_quaternion(q[0], q[1], q[2], q[3])
+        except:
+            euler_ang = np.zeros(3)
+            euler_ang[2] = state.get('yaw')
+            w = np.zeros(3)
+            w[2] = state.get('yaw_dot')
+
+        x_init = np.block([x, v, euler_ang, w])
+        return x_init
+
+    def euler_from_quaternion(self, x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+
+        return np.array([roll_x, pitch_y, yaw_z])  # in radians
+    
 class Linear_MPC(Controller):
     def __init__(self, traj, ctrl_freq):
         Controller.__init__(self, traj, ctrl_freq)
@@ -107,10 +180,11 @@ class Linear_MPC(Controller):
         self.dt = 1 / self.ctrl_freq
         self.Ad, self.Bd = self.quad_model.get_dLTI(self.dt)
         self.B_dist = np.block([[np.zeros((3, 3))],
-                                 [np.eye(3)],
-                                 [np.zeros((3, 3))],
-                                 [np.zeros((3, 3))]])
-        self.disturbance_observer = Dist_Observer(self.Ad, self.Bd, self.B_dist)
+                                [np.eye(3)],
+                                [np.zeros((3, 3))],
+                                [np.zeros((3, 3))]])
+        self.disturbance_observer = Dist_Observer(
+            self.Ad, self.Bd, self.B_dist)
         self.N = 7  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
         subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
@@ -146,8 +220,8 @@ class Linear_MPC(Controller):
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
 
         x_init = self.state2x(obs_state)
-        print(x_init)
-        print('================')
+        # print(x_init)
+        # print('================')
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
         cost = 0
@@ -179,7 +253,7 @@ class Linear_MPC(Controller):
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(verbose=False)
         u = u[:, 0].value
-        print(x[:, 1].value)
+        print(u)
         control_input = self.generate_control_input(u)
         optimized_x = (x[:, :].value).T
         # if ((int(cur_time*100)/100)%0.5 < 0.01): #and cur_time>2.8:

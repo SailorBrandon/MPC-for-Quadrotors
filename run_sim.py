@@ -57,7 +57,7 @@ if __name__=="__main__":
     simu_freq = 100 # Hz
     ctrl_freq = 50
     traj = trajectory.Trajectory("circle")
-    quad_controller = controller.Linear_MPC(traj, ctrl_freq)
+    quad_controller = controller.NonLinear_MPC(traj, ctrl_freq)
     # quad_controller = controller.PDcontroller(traj, ctrl_freq)
     real_trajectory = {'x': [], 'y': [], 'z': []}
     des_trajectory = {'x': [], 'y': [], 'z': []}
@@ -68,7 +68,7 @@ if __name__=="__main__":
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
     
-    simu_time = 15 # sec
+    simu_time = 5 # sec
     cur_time = 0
     dt = 1 / simu_freq
     num_iter = int(simu_time * simu_freq)
