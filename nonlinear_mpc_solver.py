@@ -5,6 +5,7 @@ from acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
 from quadrotor import Quadrotor
 
 
+
 @dataclass
 class MPC_Formulation_Param:
     quad = Quadrotor()
@@ -50,7 +51,7 @@ class MPC_Formulation_Param:
     
 
 
-def acados_mpc_solver_generation(mpc_form_param):
+def acados_mpc_solver_generation(mpc_form_param, collision_avoidance = False):
     # Acados model
     model = AcadosModel()
     model.name = "mav_nmpc_tracker_model"
@@ -72,10 +73,10 @@ def acados_mpc_solver_generation(mpc_form_param):
                    yaw, roll_rate, pitch_rate, yaw_rate)
 
     # control
+    thrust_cmd = cd.MX.sym('thrust_cmd')  # thrust_cmd = thrust/mass
     roll_cmd = cd.MX.sym('roll_cmd')
     pitch_cmd = cd.MX.sym('pitch_cmd')
     yaw_cmd = cd.MX.sym('yaw_cmd')
-    thrust_cmd = cd.MX.sym('thrust_cmd')  # thrust_cmd = thrust/mass
     u = cd.vertcat(thrust_cmd, roll_cmd, pitch_cmd, yaw_cmd)
 
     # state derivative
@@ -111,6 +112,7 @@ def acados_mpc_solver_generation(mpc_form_param):
     )
     dyn_f_impl = x_dot - dyn_f_expl
 
+    
     # acados mpc model
     model.x = x
     model.u = u
@@ -127,7 +129,7 @@ def acados_mpc_solver_generation(mpc_form_param):
     nx = 12
     nu = 4
     ny = nx + nu  # TODO
-    ny_e = 1  # terminal cost
+    ny_e = 6  # terminal cost, penalize on pos, pos_dot
 
     # initial condition, can be changed in real time
     ocp.constraints.x0 = np.zeros(nx)
@@ -139,9 +141,9 @@ def acados_mpc_solver_generation(mpc_form_param):
                    [np.zeros((nu, nx))]])
     ocp.cost.Vx = Vx
     Vu = np.block([[np.zeros((nx, nu))],
-                   [np.eye(nu)]])
+                   [np.eye(nu)]]) 
     ocp.cost.Vu = Vu
-    Vx_e = np.zeros((ny_e, nx))
+    Vx_e = np.block([np.eye(6), np.zeros((6, 6))]) # Hard coded for now
     ocp.cost.Vx_e = Vx_e
     # weights, changed in real time
     ocp.cost.W = np.diag([mpc_form_param.q_x, mpc_form_param.q_y, mpc_form_param.q_z,
@@ -149,8 +151,24 @@ def acados_mpc_solver_generation(mpc_form_param):
                           mpc_form_param.q_roll, mpc_form_param.q_pitch, mpc_form_param.q_yaw,
                           mpc_form_param.q_roll_rate, mpc_form_param.q_pitch_rate, mpc_form_param.q_yaw_rate,
                           mpc_form_param.r_thrust, mpc_form_param.r_roll, mpc_form_param.r_pitch, mpc_form_param.r_yaw])
-    ocp.cost.W_e = np.array([[0]])
+    ocp.cost.W_e = 10 * np.diag([mpc_form_param.q_x, mpc_form_param.q_y, mpc_form_param.q_z,
+                          mpc_form_param.q_vx, mpc_form_param.q_vy, mpc_form_param.q_vz])
 
+    # collision avoidance
+    obstacle = np.array([0, 0.5, 0.5])
+    distance = 0.5
+    con_h_expr = (px - obstacle[0])**2 + (py - obstacle[1])**2 + (pz - obstacle[2])**2
+    if collision_avoidance == True:
+        model.con_h_expr = con_h_expr
+        ocp.constraints.lh = np.array([distance**2])
+        ocp.constraints.uh = np.array([10 * distance**2])
+        ocp.cost.Zl = 1000 * np.array([1])
+        ocp.constraints.Jsh = np.array([[1]])
+        ocp.cost.Zu = np.array([0])
+        ocp.cost.zu = np.array([0])
+        ocp.cost.zl = np.array([0])
+    
+    
     # reference for tracking, changed in real time
     ocp.cost.yref = np.zeros(ny)
     ocp.cost.yref_e = np.zeros(ny_e)
@@ -168,7 +186,7 @@ def acados_mpc_solver_generation(mpc_form_param):
     # qp solver
     ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'    # PARTIAL_CONDENSING_HPIPM FULL_CONDENSING_QPOASES
     ocp.solver_options.qp_solver_cond_N = 5
-    ocp.solver_options.qp_solver_iter_max = 50
+    ocp.solver_options.qp_solver_iter_max = 100
     ocp.solver_options.qp_solver_warm_start = 1
     # nlp solver
     ocp.solver_options.nlp_solver_type = "SQP_RTI"

@@ -34,6 +34,9 @@
 SOURCES = { ...
             'mav_nmpc_tracker_model_model/mav_nmpc_tracker_model_expl_ode_fun.c', ...
             'mav_nmpc_tracker_model_model/mav_nmpc_tracker_model_expl_vde_forw.c',...
+            'mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun.c', ...
+            'mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun_jac_uxt_zt_hess.c', ...
+            'mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun_jac_uxt_zt.c', ...
             'acados_solver_sfunction_mav_nmpc_tracker_model.c', ...
             'acados_solver_mav_nmpc_tracker_model.c'
           };
@@ -84,11 +87,15 @@ i_in = i_in + 1;
 input_note = strcat(input_note, num2str(i_in), ') y_ref - concatenated for shooting nodes 1 to N-1,',...
                     ' size [304]\n ');
 i_in = i_in + 1;
-input_note = strcat(input_note, num2str(i_in), ') y_ref_e, size [1]\n ');
+input_note = strcat(input_note, num2str(i_in), ') y_ref_e, size [6]\n ');
 i_in = i_in + 1;
 input_note = strcat(input_note, num2str(i_in), ') lbu for shooting nodes 0 to N-1, size [80]\n ');
 i_in = i_in + 1;
 input_note = strcat(input_note, num2str(i_in), ') ubu for shooting nodes 0 to N-1, size [80]\n ');
+i_in = i_in + 1;
+input_note = strcat(input_note, num2str(i_in), ') lh, size [1]\n ');
+i_in = i_in + 1;
+input_note = strcat(input_note, num2str(i_in), ') uh, size [1]\n ');
 i_in = i_in + 1;
 
 fprintf(input_note)

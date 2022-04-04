@@ -45,6 +45,8 @@ MODEL_OBJ := $(MODEL_SRC:.c=.o)
 
 # optimal control problem - mostly CasADi exports
 OCP_SRC=
+OCP_SRC+= mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun_jac_uxt_zt.c
+OCP_SRC+= mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun.c
 OCP_SRC+= acados_solver_mav_nmpc_tracker_model.c
 OCP_OBJ := $(OCP_SRC:.c=.o)
 
@@ -133,7 +135,7 @@ ocp_cython_c: ocp_shared_lib
 	-o acados_ocp_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_ocp_solver_pyx.pyx \
-	-I /home/shaohang/Learning/MPC/MPC-for-Quadrotors/c_generated_code \
+	-I /home/shaohang/Study/MPC-for-Quadrotors/c_generated_code \
 
 ocp_cython_o: ocp_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \

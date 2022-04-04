@@ -11,6 +11,7 @@ import math
 import matplotlib.pyplot as plt
 from nonlinear_mpc_solver import *
 
+
 class Controller:
     def __init__(self, traj, ctrl_freq):
         self.quad_model = quadrotor.Quadrotor()
@@ -99,20 +100,21 @@ class PDcontroller(Controller):
         control_input = self.generate_control_input(u)
         return control_input, error_pos
 
+
 class NonLinear_MPC(Controller):
     def __init__(self, traj, ctrl_freq):
         super().__init__(traj, ctrl_freq)
         self.param = MPC_Formulation_Param()
         self.param.dt = 1 / self.ctrl_freq
-        self.solver = acados_mpc_solver_generation(self.param)
+        self.solver = acados_mpc_solver_generation(self.param, collision_avoidance=False)
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
 
         x_init = self.state2x(obs_state)
-        self.solver.set(0,"lbx", x_init)
-        self.solver.set(0,"ubx", x_init)
+        self.solver.set(0, "lbx", x_init)
+        self.solver.set(0, "ubx", x_init)
 
         mpc_time = cur_time
         for k in range(self.param.N):
@@ -123,10 +125,14 @@ class NonLinear_MPC(Controller):
             yref = np.block([x_ref_k, u_ref_k])
             self.solver.set(k, "yref", yref)
 
+        yref_e = yref[:6]
+        self.solver.set(self.param.N, 'yref', yref_e)
+
         status = self.solver.solve()
         if status != 0:
-            print("acados returned status {} in closed loop iteration {}.".format(status, cur_time))
-        
+            print("acados returned status {} in closed loop iteration {}.".format(
+                status, cur_time))
+
         u = self.solver.get(0, "u")
         u[0] *= self.mass
         x = self.solver.get(0, "x")
@@ -134,7 +140,7 @@ class NonLinear_MPC(Controller):
         print(x)
         control_input = self.generate_control_input(u)
         return control_input, error_pos
-    
+
     def state2x(self, state):
         x = state.get('x').flatten()
         v = state.get('v').flatten()
@@ -172,7 +178,8 @@ class NonLinear_MPC(Controller):
         yaw_z = math.atan2(t3, t4)
 
         return np.array([roll_x, pitch_y, yaw_z])  # in radians
-    
+
+
 class Linear_MPC(Controller):
     def __init__(self, traj, ctrl_freq):
         Controller.__init__(self, traj, ctrl_freq)
@@ -220,8 +227,8 @@ class Linear_MPC(Controller):
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
 
         x_init = self.state2x(obs_state)
-        # print(x_init)
-        # print('================')
+        # x_init = self.disturbance_observer.x_hat.flatten()
+
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
         cost = 0
@@ -253,7 +260,8 @@ class Linear_MPC(Controller):
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(verbose=False)
         u = u[:, 0].value
-        print(u)
+        
+        self.disturbance_observer.update(u, x_init)
         control_input = self.generate_control_input(u)
         optimized_x = (x[:, :].value).T
         # if ((int(cur_time*100)/100)%0.5 < 0.01): #and cur_time>2.8:
@@ -305,7 +313,7 @@ class Linear_MPC(Controller):
 
 class Dist_Observer:
     def __init__(self, A, B, B_dist, C=np.eye(12), C_dist=np.zeros((12, 3))):
-        self.x_hat = np.zeros((12, 1))
+        self.x_hat = np.zeros((12, 1)) + 0.01
         self.d_hat = np.zeros((3, 1))
         self.A_sq = np.block([[A, B_dist],
                               [np.zeros((3, 12)), np.eye(3)]])

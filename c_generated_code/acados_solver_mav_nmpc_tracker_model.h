@@ -48,23 +48,23 @@
 #define MAV_NMPC_TRACKER_MODEL_NBU    4
 #define MAV_NMPC_TRACKER_MODEL_NSBX   0
 #define MAV_NMPC_TRACKER_MODEL_NSBU   0
-#define MAV_NMPC_TRACKER_MODEL_NSH    0
+#define MAV_NMPC_TRACKER_MODEL_NSH    1
 #define MAV_NMPC_TRACKER_MODEL_NSG    0
 #define MAV_NMPC_TRACKER_MODEL_NSPHI  0
 #define MAV_NMPC_TRACKER_MODEL_NSHN   0
 #define MAV_NMPC_TRACKER_MODEL_NSGN   0
 #define MAV_NMPC_TRACKER_MODEL_NSPHIN 0
 #define MAV_NMPC_TRACKER_MODEL_NSBXN  0
-#define MAV_NMPC_TRACKER_MODEL_NS     0
+#define MAV_NMPC_TRACKER_MODEL_NS     1
 #define MAV_NMPC_TRACKER_MODEL_NSN    0
 #define MAV_NMPC_TRACKER_MODEL_NG     0
 #define MAV_NMPC_TRACKER_MODEL_NBXN   0
 #define MAV_NMPC_TRACKER_MODEL_NGN    0
 #define MAV_NMPC_TRACKER_MODEL_NY0    16
 #define MAV_NMPC_TRACKER_MODEL_NY     16
-#define MAV_NMPC_TRACKER_MODEL_NYN    1
+#define MAV_NMPC_TRACKER_MODEL_NYN    6
 #define MAV_NMPC_TRACKER_MODEL_N      20
-#define MAV_NMPC_TRACKER_MODEL_NH     0
+#define MAV_NMPC_TRACKER_MODEL_NH     1
 #define MAV_NMPC_TRACKER_MODEL_NPHI   0
 #define MAV_NMPC_TRACKER_MODEL_NHN    0
 #define MAV_NMPC_TRACKER_MODEL_NPHIN  0
@@ -107,6 +107,9 @@ typedef struct mav_nmpc_tracker_model_solver_capsule
 
 
     // constraints
+    external_function_param_casadi *nl_constr_h_fun_jac;
+    external_function_param_casadi *nl_constr_h_fun;
+    external_function_param_casadi *nl_constr_h_fun_jac_hess;
 
 
 
