@@ -106,7 +106,8 @@ class NonLinear_MPC(Controller):
         super().__init__(traj, ctrl_freq)
         self.param = MPC_Formulation_Param()
         self.param.dt = 1 / self.ctrl_freq
-        self.solver = acados_mpc_solver_generation(self.param, collision_avoidance=False)
+        self.solver = acados_mpc_solver_generation(
+            self.param, collision_avoidance=False)
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
@@ -136,8 +137,6 @@ class NonLinear_MPC(Controller):
         u = self.solver.get(0, "u")
         u[0] *= self.mass
         x = self.solver.get(0, "x")
-        print(u)
-        print(x)
         control_input = self.generate_control_input(u)
         return control_input, error_pos
 
@@ -192,7 +191,11 @@ class Linear_MPC(Controller):
                                 [np.zeros((3, 3))]])
         self.disturbance_observer = Dist_Observer(
             self.Ad, self.Bd, self.B_dist)
-        self.N = 7  # the number of predicted steps TODO
+        # C_obs = np.zeros((12, 12))
+        # C_obs[:3, :3] = np.eye(3)
+        # C_obs[6:9, 6:9] = np.eye(3)
+        # self.vel_observer = Dist_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs)
+        self.N = 5  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
         subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
                              [np.zeros((3, 3)), 8e2*np.eye(3)]])
@@ -200,6 +203,7 @@ class Linear_MPC(Controller):
                              [np.zeros((3, 3)), 0e2*np.eye(3)]])
         self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
                            [np.zeros((6, 6)), subQ_ang]])
+        # self.Q = 1e4*np.eye(12)
         self.R = 1e1*np.eye(4)
         self.P, self.K = self.get_terminal_cost(
             self.Ad, self.Bd, self.Q, self.R)
@@ -218,16 +222,25 @@ class Linear_MPC(Controller):
                            [1.5*self.g],
                            [1.5*self.g],
                            [1.5*self.g]])
-        self.terminal_set = Terminal_set(
-            self.Hx, self.Hu, self.K, self.Ak, self.h)
-        self.Xf_nr = self.terminal_set.Xf_nr
+        # self.terminal_set = Terminal_set(
+        #     self.Hx, self.Hu, self.K, self.Ak, self.h)
+        # self.Xf_nr = self.terminal_set.Xf_nr
+        self.x_real = [[], [], []]
+        self.x_obsv = [[], [], []]
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
         error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
 
-        x_init = self.state2x(obs_state)
-        # x_init = self.disturbance_observer.x_hat.flatten()
+        x_sys = self.state2x(obs_state)
+        x_obs_dist = self.disturbance_observer.x_hat.flatten()
+        # x_obs_vel = self.vel_observer.x_hat.flatten()
+        y = np.block([x_sys[:3], x_sys[6:9]])
+        x_init = x_obs_dist
+        
+        for i in range(3):
+            self.x_real[i].append(x_sys[i])
+            self.x_obsv[i].append(x_obs_dist[i])
 
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
@@ -242,28 +255,32 @@ class Linear_MPC(Controller):
             x_ref_k = self.state2x(des_state_ahead)
             desired_x.append(x_ref_k)
             if k == self.N:
-                cost += cp.quad_form(x[:, self.N]-x_ref_k, 0.1*self.P)
-                constr.append(
-                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
+                # constr.append(
+                #     self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
-            cost += cp.quad_form(u[:, k], self.R)
+            u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
+            cost += cp.quad_form(u[:, k] - u_ref_k, self.R)
 
             constr.append(self.Hx @ x[:, k] <= self.h[2:].squeeze())
             constr.append(self.Hu @ u[:, k] <= self.h[:2].squeeze())
             gravity = np.zeros([12, ])
-            gravity[5] = self.g
+            gravity[5] = self.dt*self.g  # discritized
             constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
-                          self.Bd @ u[:, k]-self.dt*gravity + (self.B_dist@d_hat).flatten())
+                          self.Bd @ u[:, k] - gravity + (self.B_dist@d_hat).flatten())
 
         constr.append(x[:, 0] == x_init)
         problem = cp.Problem(cp.Minimize(cost), constr)
         problem.solve(verbose=False)
         u = u[:, 0].value
+        print(u)
         
-        self.disturbance_observer.update(u, x_init)
+        self.disturbance_observer.update(u, x_sys)
+        # self.vel_observer.update(u, y)
+        
         control_input = self.generate_control_input(u)
-        optimized_x = (x[:, :].value).T
+        # optimized_x = (x[:, :].value).T
         # if ((int(cur_time*100)/100)%0.5 < 0.01): #and cur_time>2.8:
         #     visualize_x(np.array(desired_x),optimized_x,self.dt)
         return control_input, error_pos
@@ -313,7 +330,7 @@ class Linear_MPC(Controller):
 
 class Dist_Observer:
     def __init__(self, A, B, B_dist, C=np.eye(12), C_dist=np.zeros((12, 3))):
-        self.x_hat = np.zeros((12, 1)) + 0.01
+        self.x_hat = np.zeros((12, 1))
         self.d_hat = np.zeros((3, 1))
         self.A_sq = np.block([[A, B_dist],
                               [np.zeros((3, 12)), np.eye(3)]])

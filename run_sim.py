@@ -1,3 +1,4 @@
+from cProfile import label
 import quadrotor
 import controller
 import trajectory
@@ -57,7 +58,7 @@ if __name__=="__main__":
     simu_freq = 100 # Hz
     ctrl_freq = 50
     traj = trajectory.Trajectory("diamond")
-    quad_controller = controller.NonLinear_MPC(traj, ctrl_freq)
+    quad_controller = controller.Linear_MPC(traj, ctrl_freq)
     # quad_controller = controller.PDcontroller(traj, ctrl_freq)
     real_trajectory = {'x': [], 'y': [], 'z': []}
     des_trajectory = {'x': [], 'y': [], 'z': []}
@@ -68,7 +69,7 @@ if __name__=="__main__":
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
     
-    simu_time = 15 # sec
+    simu_time = 5 # sec
     cur_time = 0
     dt = 1 / simu_freq
     num_iter = int(simu_time * simu_freq)
@@ -101,6 +102,22 @@ if __name__=="__main__":
     # print("Total time needed: ", total_time)
     # print("Sum of square of angular velocities: ", np.sum(square_ang_vel))
 
+    t = np.arange(0, simu_time, 0.02)
+    y1 = np.array(quad_controller.x_obsv[0])
+    y2 = np.array(quad_controller.x_real[0])
+    y3 = np.array(quad_controller.x_obsv[1])
+    y4 = np.array(quad_controller.x_real[1])
+    y5 = np.array(quad_controller.x_obsv[2])
+    y6 = np.array(quad_controller.x_real[2])
+    plt.plot(t, y1, label="x_obsv")
+    plt.plot(t, y2, label="x_real")
+    plt.plot(t, y3, label="y_obsv")
+    plt.plot(t, y4, label="y_real")
+    plt.plot(t, y5, label="z_obsv")
+    plt.plot(t, y6, label="z_real")
+    plt.legend()
+    plt.show()
+    
     # Visualization
     start_ani = 1
     if (start_ani):
