@@ -12,11 +12,6 @@ class MPC_Formulation_Param:
     mass = quad.mass
     g = quad.g
 
-    # horizon
-    dt = 0.05
-    N = 20
-    Tf = N * dt
-
     # dynamics
     Ixx = quad.Ixx
     Iyy = quad.Iyy
@@ -47,6 +42,11 @@ class MPC_Formulation_Param:
     r_roll = 1
     r_pitch = 1
     r_yaw = 1
+    
+    def set_horizon(self, dt, N):
+        self.dt = dt
+        self.N = N
+        self.Tf = N * dt 
     
     
 

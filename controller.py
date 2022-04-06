@@ -10,6 +10,7 @@ import control
 import math
 import matplotlib.pyplot as plt
 from nonlinear_mpc_solver import *
+import scipy.io
 
 
 class Controller:
@@ -105,7 +106,7 @@ class NonLinear_MPC(Controller):
     def __init__(self, traj, ctrl_freq):
         super().__init__(traj, ctrl_freq)
         self.param = MPC_Formulation_Param()
-        self.param.dt = 1 / self.ctrl_freq
+        self.param.set_horizon(dt=1/self.ctrl_freq, N=10)
         self.solver = acados_mpc_solver_generation(
             self.param, collision_avoidance=False)
 
@@ -189,12 +190,14 @@ class Linear_MPC(Controller):
                                 [np.eye(3)],
                                 [np.zeros((3, 3))],
                                 [np.zeros((3, 3))]])
-        self.disturbance_observer = Dist_Observer(
-            self.Ad, self.Bd, self.B_dist)
-        # C_obs = np.zeros((12, 12))
-        # C_obs[:3, :3] = np.eye(3)
-        # C_obs[6:9, 6:9] = np.eye(3)
-        # self.vel_observer = Dist_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs)
+        
+        self.disturbance_observer = Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), load_L=False)
+        
+        C_obs = np.zeros((6, 12))
+        C_obs[:3, :3] = np.eye(3)
+        C_obs[3:, 6:9] = np.eye(3)
+        self.vel_observer = Observer(self.Ad, self.Bd, self.B_dist, C=C_obs, C_dist=np.zeros((6, 3)), load_L=True)
+        
         self.N = 10  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
         # subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
@@ -228,9 +231,9 @@ class Linear_MPC(Controller):
                            [1.5*self.g],
                            [1.5*self.g],
                            [1.5*self.g]])
-        # self.terminal_set = Terminal_set(
-        #     self.Hx, self.Hu, self.K, self.Ak, self.h)
-        # self.Xf_nr = self.terminal_set.Xf_nr
+        self.terminal_set = Terminal_set(
+            self.Hx, self.Hu, self.K, self.Ak, self.h)
+        self.Xf_nr = self.terminal_set.Xf_nr
         self.x_real = [[], [], []]
         self.x_obsv = [[], [], []]
 
@@ -240,13 +243,13 @@ class Linear_MPC(Controller):
 
         x_sys = self.state2x(obs_state)
         x_obs_dist = self.disturbance_observer.x_hat.flatten()
-        # x_obs_vel = self.vel_observer.x_hat.flatten()
+        x_obs_vel = self.vel_observer.x_hat.flatten()
         y = np.block([x_sys[:3], x_sys[6:9]])
         x_init = x_obs_dist
         
         for i in range(3):
             self.x_real[i].append(x_sys[i])
-            self.x_obsv[i].append(x_obs_dist[i])
+            self.x_obsv[i].append(x_obs_vel[i])
 
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
@@ -262,8 +265,8 @@ class Linear_MPC(Controller):
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
-                # constr.append(
-                #     self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                constr.append(
+                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
@@ -283,12 +286,9 @@ class Linear_MPC(Controller):
         print(u)
         
         self.disturbance_observer.update(u, x_sys)
-        # self.vel_observer.update(u, y)
+        self.vel_observer.update(u, y)
         
         control_input = self.generate_control_input(u)
-        # optimized_x = (x[:, :].value).T
-        # if ((int(cur_time*100)/100)%0.5 < 0.01): #and cur_time>2.8:
-        #     visualize_x(np.array(desired_x),optimized_x,self.dt)
         return control_input, error_pos
 
     def get_terminal_cost(self, Ad, Bd, Q, R):
@@ -334,8 +334,8 @@ class Linear_MPC(Controller):
         return np.array([roll_x, pitch_y, yaw_z])  # in radians
 
 
-class Dist_Observer:
-    def __init__(self, A, B, B_dist, C=np.eye(12), C_dist=np.zeros((12, 3))):
+class Observer:
+    def __init__(self, A, B, B_dist, C, C_dist, load_L=False):
         self.x_hat = np.zeros((12, 1))
         self.d_hat = np.zeros((3, 1))
         self.A_sq = np.block([[A, B_dist],
@@ -343,8 +343,13 @@ class Dist_Observer:
         self.B_sq = np.block([[B],
                               [np.zeros((3, 4))]])
         self.C_sq = np.block([C, C_dist])
-        eig = [0.5 for i in range(7)] + [0.7 for i in range(8)]
-        self.L = control.place(self.A_sq.T, self.C_sq.T, eig).T
+        if load_L:
+            file_path = 'saveL.mat'
+            mat = scipy.io.loadmat(file_path)
+            self.L = mat['L']
+        else:
+            eig = [0.5 for i in range(7)] + [0.7 for i in range(8)]
+            self.L = control.place(self.A_sq.T, self.C_sq.T, eig).T
 
     def update(self, u, y):
         exd_state = np.block([[self.x_hat],
@@ -355,51 +360,3 @@ class Dist_Observer:
         self.x_hat = exd_state[:12]
         self.d_hat = exd_state[12:]
 
-
-def visualize_x(desired_x, optimized_x, dt):
-    t = np.arange(desired_x.shape[0])*dt
-    i = 0
-    plt.subplot(2, 3, 1)
-    plt.plot(t, desired_x[:, i])
-    plt.plot(t, optimized_x[:, i])
-    plt.xlabel('t')
-    plt.ylabel('state value')
-    plt.title('x')
-    plt.legend(['desired', 'optimized'])
-    plt.subplot(2, 3, 2)
-    plt.plot(t, desired_x[:, i+1])
-    plt.plot(t, optimized_x[:, i+1])
-    plt.xlabel('t')
-    plt.ylabel('state value')
-    plt.title('y')
-    plt.legend(['desired', 'optimized'])
-    plt.subplot(2, 3, 3)
-    plt.plot(t, desired_x[:, i+2])
-    plt.plot(t, optimized_x[:, i+2])
-    plt.xlabel('t')
-    plt.ylabel('state value')
-    plt.title('z')
-    plt.legend(['desired', 'optimized'])
-    plt.subplot(2, 3, 4)
-    plt.plot(t, desired_x[:, i+3])
-    plt.plot(t, optimized_x[:, i+3])
-    plt.xlabel('t')
-    plt.ylabel('state value')
-    plt.title('vx')
-    plt.legend(['desired', 'optimized'])
-    plt.subplot(2, 3, 5)
-    plt.plot(t, desired_x[:, i+4])
-    plt.plot(t, optimized_x[:, i+4])
-    plt.xlabel('t')
-    plt.ylabel('state value')
-    plt.title('vy')
-    plt.legend(['desired', 'optimized'])
-    plt.subplot(2, 3, 6)
-    plt.plot(t, desired_x[:, i+5])
-    plt.plot(t, optimized_x[:, i+5])
-    plt.xlabel('t')
-    plt.ylabel('state value')
-    plt.title('vz')
-    plt.legend(['desired', 'optimized'])
-    plt.show()
-    input()

@@ -19,7 +19,7 @@ class Trajectory:
         radius = 3
         dt = 0.01
         if t > T:
-            pos = np.array([radius, 0, 2.5])
+            pos = np.array([0, 0, 2.5])
             vel = np.array([0,0,0])
             acc = np.array([0,0,0])
         else:
