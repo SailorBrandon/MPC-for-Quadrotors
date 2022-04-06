@@ -13,6 +13,7 @@ from nonlinear_mpc_solver import *
 import scipy.io
 
 
+
 class Controller:
     def __init__(self, traj, ctrl_freq):
         self.quad_model = quadrotor.Quadrotor()

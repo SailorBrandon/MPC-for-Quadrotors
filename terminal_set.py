@@ -16,6 +16,7 @@ class Terminal_set:
         self.K_aug = np.vstack((K, np.eye(self.Nx)))
         self.maxiter = 200
         self.Xf = self.terminal_set_cal()
+
         self.Xf_nr = self.remove_redundancy()
 
     def terminal_set_cal(self):
