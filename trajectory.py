@@ -18,10 +18,10 @@ class Trajectory:
         T = 14
         radius = 3
         dt = 0.01
-        if t > T:
-            pos = np.array([0, 0, 2.5])
-            vel = np.array([0,0,0])
-            acc = np.array([0,0,0])
+        if t+dt > T:
+            pos = np.array([0, 0, 2.5]).reshape([-1,1])
+            vel = np.array([0,0,0]).reshape([-1,1])
+            acc = np.array([0,0,0]).reshape([-1,1])
         else:
             angle,_,_ = self.tj_from_line(0, 2*np.pi, T, t)
             angle2,_,_ = self.tj_from_line(0, 2*np.pi, T, t+dt)

@@ -218,19 +218,33 @@ class Linear_MPC(Controller):
             self.Ad, self.Bd, self.Q, self.R)
 
         self.Ak = self.Ad-self.Bd@self.K
-        self.Hx = np.array([[0, 0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0],  # x,y acc constraints
-                            [0, 0, 0, 0, 0, 0, (-self.g), 0, 0, 0, 0, 0],
-                            # x,y acc constraints
-                            [0, 0, 0, 0, 0, 0, 0, -self.g, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 0, 0, self.g, 0, 0, 0, 0, 0]])
+        self.Hx = np.array([
+                            [0, 0, 0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0],  # roll pitch constraints
+                            [0, 0, 0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0], #velocity constraints
+                            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, -1.0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0]
+                            ])
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
                             [-1/self.mass, 0, 0, 0]])  # z acc constraints
-        self.h = np.array([[2.5*self.g],  # z acc constraints
-                           [2.5*self.g],
-                           [1.5*self.g],  # x y acc constraints
-                           [1.5*self.g],
-                           [1.5*self.g],
-                           [1.5*self.g]])
+        self.h = np.array([[1.5*self.g],  # z acc constraints
+                           [-0.5*self.g],
+                           [0.5],  
+                           [0.5],
+                           [2.0],#velocity constraints
+                           [2.0],
+                           [2.0],
+                           [0.5], 
+                           [0.5],
+                           [2.0],
+                           [2.0],
+                           [2.0]
+                           ])
         self.terminal_set = Terminal_set(
             self.Hx, self.Hu, self.K, self.Ak, self.h)
         self.Xf_nr = self.terminal_set.Xf_nr
@@ -271,6 +285,7 @@ class Linear_MPC(Controller):
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             cost += cp.quad_form(u[:, k] - u_ref_k, self.R)
+            # print(self.h[:2].squeeze())
 
             constr.append(self.Hx @ x[:, k] <= self.h[2:].squeeze())
             constr.append(self.Hu @ u[:, k] <= self.h[:2].squeeze())
@@ -284,6 +299,7 @@ class Linear_MPC(Controller):
         problem.solve(verbose=False)
         u = u[:, 0].value
         print(u)
+
         
         self.disturbance_observer.update(u, x_sys)
         self.vel_observer.update(u, y)
