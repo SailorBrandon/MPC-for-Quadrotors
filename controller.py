@@ -278,7 +278,7 @@ class Linear_MPC(Controller):
 
         constr.append(x[:, 0] == x_init)
         problem = cp.Problem(cp.Minimize(cost), constr)
-        problem.solve(verbose=False)
+        problem.solve(verbose=True)
         u = u[:, 0].value
         print(u)
         

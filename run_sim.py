@@ -28,7 +28,7 @@ if __name__=="__main__":
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
     
-    simu_time = 10 # sec
+    simu_time = 15 # sec
     cur_time = 0
     dt = 1 / simu_freq
     num_iter = int(simu_time * simu_freq)
@@ -52,6 +52,7 @@ if __name__=="__main__":
         real_trajectory['x'].append(obs['x'][0])
         real_trajectory['y'].append(obs['x'][1])
         real_trajectory['z'].append(obs['x'][2])
+        
         des_trajectory['x'].append(des_state['x'][0][0])
         des_trajectory['y'].append(des_state['x'][1][0])
         des_trajectory['z'].append(des_state['x'][2][0])

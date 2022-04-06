@@ -19,7 +19,7 @@ class Trajectory:
         radius = 3
         dt = 0.01
         if t > T:
-            pos = np.array([radius, 0, 2.5])
+            pos = np.array([0, 0, 2.5])
             vel = np.array([0,0,0])
             acc = np.array([0,0,0])
         else:
@@ -32,9 +32,9 @@ class Trajectory:
             vel = (pos2- pos)/dt
             vel2 = (pos3- pos2)/dt
             acc = (vel2 - vel)/dt
-            pos=pos.reshape([-1,1])
-            vel=vel.reshape([-1,1])
-            acc=acc.reshape([-1,1])
+        pos=pos.reshape([-1,1])
+        vel=vel.reshape([-1,1])
+        acc=acc.reshape([-1,1])
         return pos, vel, acc
     def diamond(self, t):
         T1, T2, T3, T4 = 3.5, 3.5, 3.5, 3.5
