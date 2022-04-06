@@ -9,7 +9,7 @@ import numpy.linalg as LA
 import control
 import math
 import matplotlib.pyplot as plt
-from nonlinear_mpc_solver import *
+# from nonlinear_mpc_solver import *
 import scipy.io
 
 
