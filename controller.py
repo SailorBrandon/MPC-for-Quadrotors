@@ -195,7 +195,7 @@ class Linear_MPC(Controller):
         # C_obs[:3, :3] = np.eye(3)
         # C_obs[6:9, 6:9] = np.eye(3)
         # self.vel_observer = Dist_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs)
-        self.N = 5  # the number of predicted steps TODO
+        self.N = 10  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
         # subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
         #                      [np.zeros((3, 3)), 8e2*np.eye(3)]])
@@ -203,7 +203,7 @@ class Linear_MPC(Controller):
         #                      [np.zeros((3, 3)), 0e2*np.eye(3)]])
         # self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
         #                    [np.zeros((6, 6)), subQ_ang]])
-        subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
+        subQ_pos = np.block([[1e3*np.eye(3), np.zeros((3, 3))],
                              [np.zeros((3, 3)), 1e2*np.eye(3)]])
         subQ_ang = np.block([[1e3*np.eye(3), np.zeros((3, 3))],
                              [np.zeros((3, 3)), 1e2*np.eye(3)]])
@@ -228,9 +228,9 @@ class Linear_MPC(Controller):
                            [1.5*self.g],
                            [1.5*self.g],
                            [1.5*self.g]])
-        # self.terminal_set = Terminal_set(
-        #     self.Hx, self.Hu, self.K, self.Ak, self.h)
-        # self.Xf_nr = self.terminal_set.Xf_nr
+        self.terminal_set = Terminal_set(
+            self.Hx, self.Hu, self.K, self.Ak, self.h)
+        self.Xf_nr = self.terminal_set.Xf_nr
         self.x_real = [[], [], []]
         self.x_obsv = [[], [], []]
 
@@ -262,8 +262,8 @@ class Linear_MPC(Controller):
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
-                # constr.append(
-                #     self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                constr.append(
+                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])

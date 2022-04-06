@@ -6,50 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 from matplotlib import animation
+from utils import *
 
-def visualization(real_trajectory, des_trajectory):
-    fig = plt.figure()
-    ax1 = p3.Axes3D(fig)  # 3D place for drawing
-    real_trajectory['x'] = np.array(real_trajectory['x'])
-    real_trajectory['y'] = np.array(real_trajectory['y'])
-    real_trajectory['z'] = np.array(real_trajectory['z'])
-    des_trajectory['x'] = np.array(des_trajectory['x'])
-    des_trajectory['y'] = np.array(des_trajectory['y'])
-    des_trajectory['z'] = np.array(des_trajectory['z'])
-    point, = ax1.plot([real_trajectory['x'][0]], [real_trajectory['y'][0]], [real_trajectory['z'][0]], 'ro',
-                    label='Quadrotor')
-    line1, = ax1.plot([real_trajectory['x'][0]], [real_trajectory['y'][0]], [real_trajectory['z'][0]],
-                    label='Real_Trajectory')
-    line2, = ax1.plot(des_trajectory['x'][0], des_trajectory['y'][0], des_trajectory['z'][0],
-                    label='Des_trajectory')
-    ax1.set_xlabel('x')
-    ax1.set_ylabel('y')
-    ax1.set_zlabel('z')
-    ax1.set_xlim(-6,1)
-    ax1.set_ylim(-3,3)
-    ax1.set_zlim(-0,2.0)
-    ax1.set_title('3D animate')
-    ax1.view_init(35, 35)
-    ax1.legend(loc='lower right')
 
-    def animate(i):
-        line1.set_xdata(real_trajectory['x'][:i + 5])
-        line1.set_ydata(real_trajectory['y'][:i + 5])
-        line1.set_3d_properties(real_trajectory['z'][:i + 5])
-        line2.set_xdata(des_trajectory['x'][:i + 5])
-        line2.set_ydata(des_trajectory['y'][:i + 5])
-        line2.set_3d_properties(des_trajectory['z'][:i + 5])
-        point.set_xdata(real_trajectory['x'][i])
-        point.set_ydata(real_trajectory['y'][i])
-        point.set_3d_properties(real_trajectory['z'][i])
-
-    ani = animation.FuncAnimation(fig=fig,
-                                func=animate,
-                                frames=len(real_trajectory['x']),
-                                interval=1,
-                                repeat=False,
-                                blit=False)
-    plt.show()
 
 # start simulation
 if __name__=="__main__":
@@ -69,7 +28,7 @@ if __name__=="__main__":
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
     
-    simu_time = 5 # sec
+    simu_time = 1 # sec
     cur_time = 0
     dt = 1 / simu_freq
     num_iter = int(simu_time * simu_freq)
@@ -102,23 +61,10 @@ if __name__=="__main__":
     # print("Total time needed: ", total_time)
     # print("Sum of square of angular velocities: ", np.sum(square_ang_vel))
 
-    t = np.arange(0, simu_time, 0.02)
-    y1 = np.array(quad_controller.x_obsv[0])
-    y2 = np.array(quad_controller.x_real[0])
-    y3 = np.array(quad_controller.x_obsv[1])
-    y4 = np.array(quad_controller.x_real[1])
-    y5 = np.array(quad_controller.x_obsv[2])
-    y6 = np.array(quad_controller.x_real[2])
-    plt.plot(t, y1, label="x_obsv")
-    plt.plot(t, y2, label="x_real")
-    plt.plot(t, y3, label="y_obsv")
-    plt.plot(t, y4, label="y_real")
-    plt.plot(t, y5, label="z_obsv")
-    plt.plot(t, y6, label="z_real")
-    plt.legend()
-    plt.show()
+
     
     # Visualization
-    start_ani = 1
-    if (start_ani):
-        visualization(real_trajectory, des_trajectory)
+    # visualizer = Visualizer(real_trajectory, des_trajectory)
+    # visualizer.plot_obsv(simu_time, quad_controller.x_real, quad_controller.x_obsv)
+    # visualizer.animation_3d()
+    
