@@ -9,7 +9,7 @@ import numpy.linalg as LA
 import control
 import math
 import matplotlib.pyplot as plt
-from nonlinear_mpc_solver import *
+# from nonlinear_mpc_solver import *
 
 
 class Controller:
@@ -228,9 +228,9 @@ class Linear_MPC(Controller):
                            [1.5*self.g],
                            [1.5*self.g],
                            [1.5*self.g]])
-        # self.terminal_set = Terminal_set(
-        #     self.Hx, self.Hu, self.K, self.Ak, self.h)
-        # self.Xf_nr = self.terminal_set.Xf_nr
+        self.terminal_set = Terminal_set(
+            self.Hx, self.Hu, self.K, self.Ak, self.h)
+        self.Xf_nr = self.terminal_set.Xf_nr
         self.x_real = [[], [], []]
         self.x_obsv = [[], [], []]
 
