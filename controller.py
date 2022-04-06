@@ -197,10 +197,16 @@ class Linear_MPC(Controller):
         # self.vel_observer = Dist_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs)
         self.N = 5  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
-        subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 8e2*np.eye(3)]])
-        subQ_ang = np.block([[5e3*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 0e2*np.eye(3)]])
+        # subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
+        #                      [np.zeros((3, 3)), 8e2*np.eye(3)]])
+        # subQ_ang = np.block([[5e3*np.eye(3), np.zeros((3, 3))],
+        #                      [np.zeros((3, 3)), 0e2*np.eye(3)]])
+        # self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
+        #                    [np.zeros((6, 6)), subQ_ang]])
+        subQ_pos = np.block([[1e4*np.eye(3), np.zeros((3, 3))],
+                             [np.zeros((3, 3)), 1e2*np.eye(3)]])
+        subQ_ang = np.block([[1e3*np.eye(3), np.zeros((3, 3))],
+                             [np.zeros((3, 3)), 1e2*np.eye(3)]])
         self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
                            [np.zeros((6, 6)), subQ_ang]])
         # self.Q = 1e4*np.eye(12)
