@@ -371,15 +371,15 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
     /**** Cost ****/
     double* W_0 = calloc(NY0*NY0, sizeof(double));
     // change only the non-zero elements:
-    W_0[0+(NY0) * 0] = 1;
-    W_0[1+(NY0) * 1] = 1;
-    W_0[2+(NY0) * 2] = 1;
-    W_0[3+(NY0) * 3] = 1;
-    W_0[4+(NY0) * 4] = 1;
-    W_0[5+(NY0) * 5] = 1;
-    W_0[6+(NY0) * 6] = 1;
-    W_0[7+(NY0) * 7] = 1;
-    W_0[8+(NY0) * 8] = 1;
+    W_0[0+(NY0) * 0] = 100;
+    W_0[1+(NY0) * 1] = 100;
+    W_0[2+(NY0) * 2] = 100;
+    W_0[3+(NY0) * 3] = 10;
+    W_0[4+(NY0) * 4] = 10;
+    W_0[5+(NY0) * 5] = 10;
+    W_0[6+(NY0) * 6] = 50;
+    W_0[7+(NY0) * 7] = 50;
+    W_0[8+(NY0) * 8] = 50;
     W_0[9+(NY0) * 9] = 1;
     W_0[10+(NY0) * 10] = 1;
     W_0[11+(NY0) * 11] = 1;
@@ -396,15 +396,15 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
     free(yref_0);
     double* W = calloc(NY*NY, sizeof(double));
     // change only the non-zero elements:
-    W[0+(NY) * 0] = 1;
-    W[1+(NY) * 1] = 1;
-    W[2+(NY) * 2] = 1;
-    W[3+(NY) * 3] = 1;
-    W[4+(NY) * 4] = 1;
-    W[5+(NY) * 5] = 1;
-    W[6+(NY) * 6] = 1;
-    W[7+(NY) * 7] = 1;
-    W[8+(NY) * 8] = 1;
+    W[0+(NY) * 0] = 100;
+    W[1+(NY) * 1] = 100;
+    W[2+(NY) * 2] = 100;
+    W[3+(NY) * 3] = 10;
+    W[4+(NY) * 4] = 10;
+    W[5+(NY) * 5] = 10;
+    W[6+(NY) * 6] = 50;
+    W[7+(NY) * 7] = 50;
+    W[8+(NY) * 8] = 50;
     W[9+(NY) * 9] = 1;
     W[10+(NY) * 10] = 1;
     W[11+(NY) * 11] = 1;
@@ -490,12 +490,12 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
 
     double* W_e = calloc(NYN*NYN, sizeof(double));
     // change only the non-zero elements:
-    W_e[0+(NYN) * 0] = 10;
-    W_e[1+(NYN) * 1] = 10;
-    W_e[2+(NYN) * 2] = 10;
-    W_e[3+(NYN) * 3] = 10;
-    W_e[4+(NYN) * 4] = 10;
-    W_e[5+(NYN) * 5] = 10;
+    W_e[0+(NYN) * 0] = 50;
+    W_e[1+(NYN) * 1] = 50;
+    W_e[2+(NYN) * 2] = 50;
+    W_e[3+(NYN) * 3] = 50;
+    W_e[4+(NYN) * 4] = 50;
+    W_e[5+(NYN) * 5] = 50;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "W", W_e);
     free(W_e);
     double* Vx_e = calloc(NYN*NX, sizeof(double));

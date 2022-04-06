@@ -13,7 +13,6 @@ from nonlinear_mpc_solver import *
 import scipy.io
 
 
-
 class Controller:
     def __init__(self, traj, ctrl_freq):
         self.quad_model = quadrotor.Quadrotor()
@@ -55,6 +54,44 @@ class Controller:
                          'cmd_thrust': cmd_thrust,
                          'cmd_moment': cmd_moment}
         return control_input
+    
+    def state2x(self, state):
+        x = state.get('x').flatten()
+        v = state.get('v').flatten()
+        try:
+            q = state.get('q').flatten()
+            w = state.get('w').flatten()
+            euler_ang = self.euler_from_quaternion(q[0], q[1], q[2], q[3])
+        except:
+            euler_ang = np.zeros(3)
+            euler_ang[2] = state.get('yaw')
+            w = np.zeros(3)
+            w[2] = state.get('yaw_dot')
+
+        x_init = np.block([x, v, euler_ang, w])
+        return x_init
+
+    def euler_from_quaternion(self, x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+
+        return np.array([roll_x, pitch_y, yaw_z])  # in radians
 
 
 class PDcontroller(Controller):
@@ -141,44 +178,6 @@ class NonLinear_MPC(Controller):
         x = self.solver.get(0, "x")
         control_input = self.generate_control_input(u)
         return control_input, error_pos
-
-    def state2x(self, state):
-        x = state.get('x').flatten()
-        v = state.get('v').flatten()
-        try:
-            q = state.get('q').flatten()
-            w = state.get('w').flatten()
-            euler_ang = self.euler_from_quaternion(q[0], q[1], q[2], q[3])
-        except:
-            euler_ang = np.zeros(3)
-            euler_ang[2] = state.get('yaw')
-            w = np.zeros(3)
-            w[2] = state.get('yaw_dot')
-
-        x_init = np.block([x, v, euler_ang, w])
-        return x_init
-
-    def euler_from_quaternion(self, x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-
-        return np.array([roll_x, pitch_y, yaw_z])  # in radians
 
 
 class Linear_MPC(Controller):
@@ -295,44 +294,6 @@ class Linear_MPC(Controller):
     def get_terminal_cost(self, Ad, Bd, Q, R):
         P, L, G = control.dare(Ad, Bd, Q, R)
         return P, G
-
-    def state2x(self, state):
-        x = state.get('x').flatten()
-        v = state.get('v').flatten()
-        try:
-            q = state.get('q').flatten()
-            w = state.get('w').flatten()
-            euler_ang = self.euler_from_quaternion(q[0], q[1], q[2], q[3])
-        except:
-            euler_ang = np.zeros(3)
-            euler_ang[2] = state.get('yaw')
-            w = np.zeros(3)
-            w[2] = state.get('yaw_dot')
-
-        x_init = np.block([x, v, euler_ang, w])
-        return x_init
-
-    def euler_from_quaternion(self, x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-
-        return np.array([roll_x, pitch_y, yaw_z])  # in radians
 
 
 class Observer:

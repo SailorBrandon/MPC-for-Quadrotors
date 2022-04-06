@@ -25,16 +25,16 @@ class MPC_Formulation_Param:
     yaw_max = np.deg2rad(60)
 
     
-    # cost weights
-    q_x = 1
-    q_y = 1
-    q_z = 1
-    q_vx = 1
-    q_vy = 1
-    q_vz = 1
-    q_roll = 1
-    q_pitch = 1
-    q_yaw = 1
+    # state cost weights
+    q_x = 100
+    q_y = 100
+    q_z = 100
+    q_vx = 10
+    q_vy = 10
+    q_vz = 10
+    q_roll = 50
+    q_pitch = 50
+    q_yaw = 50
     q_roll_rate = 1
     q_pitch_rate = 1
     q_yaw_rate = 1
@@ -42,6 +42,14 @@ class MPC_Formulation_Param:
     r_roll = 1
     r_pitch = 1
     r_yaw = 1
+    
+    # terminal cost weights
+    q_x_terminal = 50
+    q_y_terminal = 50
+    q_z_terminal = 50
+    q_vx_terminal = 50
+    q_vy_terminal = 50
+    q_vz_terminal = 50
     
     def set_horizon(self, dt, N):
         self.dt = dt
@@ -151,8 +159,8 @@ def acados_mpc_solver_generation(mpc_form_param, collision_avoidance = False):
                           mpc_form_param.q_roll, mpc_form_param.q_pitch, mpc_form_param.q_yaw,
                           mpc_form_param.q_roll_rate, mpc_form_param.q_pitch_rate, mpc_form_param.q_yaw_rate,
                           mpc_form_param.r_thrust, mpc_form_param.r_roll, mpc_form_param.r_pitch, mpc_form_param.r_yaw])
-    ocp.cost.W_e = 10 * np.diag([mpc_form_param.q_x, mpc_form_param.q_y, mpc_form_param.q_z,
-                          mpc_form_param.q_vx, mpc_form_param.q_vy, mpc_form_param.q_vz])
+    ocp.cost.W_e =  np.diag([mpc_form_param.q_x_terminal, mpc_form_param.q_y_terminal, mpc_form_param.q_z_terminal,
+                          mpc_form_param.q_vx_terminal, mpc_form_param.q_vy_terminal, mpc_form_param.q_vz_terminal])
 
     # collision avoidance
     obstacle = np.array([0, 0.5, 0.5])
@@ -162,7 +170,7 @@ def acados_mpc_solver_generation(mpc_form_param, collision_avoidance = False):
         model.con_h_expr = con_h_expr
         ocp.constraints.lh = np.array([distance**2])
         ocp.constraints.uh = np.array([10 * distance**2])
-        ocp.cost.Zl = 1000 * np.array([1])
+        ocp.cost.Zl = 100000 * np.array([1])
         ocp.constraints.Jsh = np.array([[1]])
         ocp.cost.Zu = np.array([0])
         ocp.cost.zu = np.array([0])
