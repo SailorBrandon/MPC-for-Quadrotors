@@ -13,7 +13,7 @@ class Terminal_set:
         self.Nc = self.H.shape[0]
         self.Nx = Ak.shape[1]
         self.h = h
-        self.K_aug = np.vstack((K, np.eye(self.Nx)))
+        self.K_aug = np.vstack((-K, np.eye(self.Nx)))
         self.maxiter = 200
         self.Xf = self.terminal_set_cal()
 
