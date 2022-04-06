@@ -228,9 +228,9 @@ class Linear_MPC(Controller):
                            [1.5*self.g],
                            [1.5*self.g],
                            [1.5*self.g]])
-        self.terminal_set = Terminal_set(
-            self.Hx, self.Hu, self.K, self.Ak, self.h)
-        self.Xf_nr = self.terminal_set.Xf_nr
+        # self.terminal_set = Terminal_set(
+        #     self.Hx, self.Hu, self.K, self.Ak, self.h)
+        # self.Xf_nr = self.terminal_set.Xf_nr
         self.x_real = [[], [], []]
         self.x_obsv = [[], [], []]
 
@@ -262,8 +262,8 @@ class Linear_MPC(Controller):
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
-                constr.append(
-                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                # constr.append(
+                #     self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])

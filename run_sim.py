@@ -16,7 +16,7 @@ if __name__=="__main__":
     quad_model.reset()
     simu_freq = 100 # Hz
     ctrl_freq = 50
-    traj = trajectory.Trajectory("diamond")
+    traj = trajectory.Trajectory("circle")
     quad_controller = controller.Linear_MPC(traj, ctrl_freq)
     # quad_controller = controller.PDcontroller(traj, ctrl_freq)
     real_trajectory = {'x': [], 'y': [], 'z': []}
@@ -28,7 +28,7 @@ if __name__=="__main__":
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
     
-    simu_time = 1 # sec
+    simu_time = 10 # sec
     cur_time = 0
     dt = 1 / simu_freq
     num_iter = int(simu_time * simu_freq)
@@ -63,8 +63,9 @@ if __name__=="__main__":
 
 
     
-    # Visualization
-    # visualizer = Visualizer(real_trajectory, des_trajectory)
-    # visualizer.plot_obsv(simu_time, quad_controller.x_real, quad_controller.x_obsv)
-    # visualizer.animation_3d()
+    '''Visualization'''
+    visualizer = Visualizer(simu_time, simu_freq, ctrl_freq, real_trajectory, des_trajectory)
+    visualizer.plot_obsv(quad_controller.x_real, quad_controller.x_obsv)
+    visualizer.plot_tracking_performance()
+    visualizer.animation_3d()
     

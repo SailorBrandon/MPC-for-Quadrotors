@@ -9,7 +9,9 @@ from matplotlib import animation
 
 class Visualizer:
     def __init__(self, simu_time, simu_freq, ctrl_freq, real_trajectory, des_trajectory) -> None:
-        self
+        self.simu_time = simu_time
+        self.simu_freq = simu_freq
+        self.ctrl_freq = ctrl_freq
         self.real_trajectory = real_trajectory
         self.des_trajectory = des_trajectory
         self.real_trajectory['x'] = np.array(self.real_trajectory['x'])
@@ -57,22 +59,35 @@ class Visualizer:
                                     blit=False)
         plt.show()
         
-    def plot_obsv(self, simu_time, x_real, x_obsv):
-        t = np.arange(0, simu_time, 0.02)
+    def plot_obsv(self, x_real, x_obsv):
+        t = np.arange(0, self.simu_time, 1/self.ctrl_freq)
         y1 = np.array(x_obsv[0])
         y2 = np.array(x_real[0])
         y3 = np.array(x_obsv[1])
         y4 = np.array(x_real[1])
         y5 = np.array(x_obsv[2])
         y6 = np.array(x_real[2])
-        plt.plot(t, y1, label="x_obsv")
+        plt.plot(t, y1, '--', label="x_obsv")
         plt.plot(t, y2, label="x_real")
-        plt.plot(t, y3, label="y_obsv")
+        plt.plot(t, y3, '--', label="y_obsv")
         plt.plot(t, y4, label="y_real")
-        plt.plot(t, y5, label="z_obsv")
+        plt.plot(t, y5, '--', label="z_obsv")
         plt.plot(t, y6, label="z_real")
+        plt.title('real vs obsv')
+        plt.xlabel('time')
         plt.legend()
         plt.show()
         
-    # def plot_des(self):
+    def plot_tracking_performance(self):
+        t = np.arange(0, self.simu_time, 1/self.simu_freq)
+        plt.plot(t, self.real_trajectory['x'], label="x_real")
+        plt.plot(t, self.real_trajectory['y'], label="y_real")
+        plt.plot(t, self.real_trajectory['z'], label="z_real")
+        plt.plot(t, self.des_trajectory['x'], '--', label="x_des")
+        plt.plot(t, self.des_trajectory['y'], '--', label="y_des")
+        plt.plot(t, self.des_trajectory['z'], '--', label="z_des")
+        plt.title('real vs desired')
+        plt.xlabel('time')
+        plt.legend()
+        plt.show()
         
