@@ -19,13 +19,13 @@ class Trajectory:
         radius = 3
         dt = 0.01
         if t+dt > T:
-            pos = np.array([0, 0, 2.5])
-            vel = np.array([0,0,0])
-            acc = np.array([0,0,0])
+            pos = np.array([0, 0, 2.5]).reshape([-1,1])
+            vel = np.array([0,0,0]).reshape([-1,1])
+            acc = np.array([0,0,0]).reshape([-1,1])
         else:
-            angle,_,_ = self.tj_from_line(0, 2*np.pi, T, t).reshape([-1,1])
-            angle2,_,_ = self.tj_from_line(0, 2*np.pi, T, t+dt).reshape([-1,1])
-            angle3,_,_ = self.tj_from_line(0, 2*np.pi, T, t+2*dt).reshape([-1,1])
+            angle,_,_ = self.tj_from_line(0, 2*np.pi, T, t)
+            angle2,_,_ = self.tj_from_line(0, 2*np.pi, T, t+dt)
+            angle3,_,_ = self.tj_from_line(0, 2*np.pi, T, t+2*dt)
             pos = np.array([radius*(np.cos(angle)-1),radius*np.sin(angle),2.5*angle/(2*np.pi)])
             pos2 = np.array([radius*(np.cos(angle2)-1),radius*np.sin(angle2),2.5*angle2/(2*np.pi)])
             pos3 = np.array([radius*(np.cos(angle3)-1),radius*np.sin(angle3),2.5*angle3/(2*np.pi)])
