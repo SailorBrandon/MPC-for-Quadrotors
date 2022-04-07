@@ -136,3 +136,12 @@ class Terminal_set:
 # print('b_inf',Ter_set.Xf[1])
 # print('Ainf_nr',Ter_set.Xf_nr[0])
 # print('binf_nr',Ter_set.Xf_nr[1])
+
+    def test_lya_decrease(self,P,Q,R,N=25):
+        A_inf,b_inf=self.Xf_nr
+        vertices=[]
+        for i in range(A_inf.shape[0]):
+            obj = A_inf[i, :]
+            _, x = self.solve_linprog(obj, A_inf, b_inf)
+            vertices.append(x)
+        vertices=np.array(vertices)

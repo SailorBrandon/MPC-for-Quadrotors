@@ -313,7 +313,7 @@ class Linear_MPC(Controller):
         print(u)
 
         
-        # self.disturbance_observer.update(u, x_sys)
+        self.disturbance_observer.update(u, x_sys)
         # self.vel_observer.update(u, y)
         
         control_input = self.generate_control_input(u)
