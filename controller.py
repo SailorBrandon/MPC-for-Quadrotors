@@ -191,12 +191,12 @@ class Linear_MPC(Controller):
                                 [np.zeros((3, 3))],
                                 [np.zeros((3, 3))]])
         
-        self.disturbance_observer = Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), load_L=False)
+        self.disturbance_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), load_L=False)
         
         C_obs = np.zeros((6, 12))
         C_obs[:3, :3] = np.eye(3)
         C_obs[3:, 6:9] = np.eye(3)
-        self.vel_observer = Observer(self.Ad, self.Bd, self.B_dist, C=C_obs, C_dist=np.zeros((6, 3)), load_L=True)
+        self.vel_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs, C_dist=np.zeros((6, 3)), load_L=True)
         
         self.N = 10  # the number of predicted steps TODO
         # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
@@ -232,7 +232,7 @@ class Linear_MPC(Controller):
                             ])
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
                             [-1/self.mass, 0, 0, 0]])  # z acc constraints
-        self.h = np.array([[2.5*self.g],  # z acc constraints
+        self.h = np.array([[0.5*self.g],  # z acc constraints
                            [0.5*self.g],
                            [0.5],  
                            [0.5],
@@ -272,7 +272,7 @@ class Linear_MPC(Controller):
         x_obs_dist = self.disturbance_observer.x_hat.flatten()
         x_obs_vel = self.vel_observer.x_hat.flatten()
         y = np.block([x_sys[:3], x_sys[6:9]])
-        x_init = x_obs_dist
+        x_init = x_sys
         
         for i in range(3):
             self.x_real[i].append(x_sys[i])
@@ -298,7 +298,6 @@ class Linear_MPC(Controller):
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             cost += cp.quad_form(u[:, k] - u_ref_k, self.R)
-            # print(self.h[:2].squeeze())
 
             constr.append(self.Hx @ x[:, k] <= self.h1[2:].squeeze())
             constr.append(self.Hu @ u[:, k] <= self.h1[:2].squeeze())
@@ -314,8 +313,8 @@ class Linear_MPC(Controller):
         print(u)
 
         
-        self.disturbance_observer.update(u, x_sys)
-        self.vel_observer.update(u, y)
+        # self.disturbance_observer.update(u, x_sys)
+        # self.vel_observer.update(u, y)
         
         control_input = self.generate_control_input(u)
         return control_input, error_pos
@@ -325,7 +324,7 @@ class Linear_MPC(Controller):
         return P, G
 
 
-class Observer:
+class Luenberger_Observer:
     def __init__(self, A, B, B_dist, C, C_dist, load_L=False):
         self.x_hat = np.zeros((12, 1))
         self.d_hat = np.zeros((3, 1))
