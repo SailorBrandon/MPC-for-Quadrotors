@@ -233,7 +233,20 @@ class Linear_MPC(Controller):
                             ])
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
                             [-1/self.mass, 0, 0, 0]])  # z acc constraints
-        self.h = np.array([[1.5*self.g],  # z acc constraints
+        self.h = np.array([[2.0*self.g],  # z acc constraints
+                           [0.5*self.g],
+                           [0.5],  
+                           [0.5],
+                           [2.0],#velocity constraints
+                           [2.0],
+                           [2.0],
+                           [0.5], 
+                           [0.5],
+                           [2.0],
+                           [2.0],
+                           [2.0]
+                           ])
+        self.h1 = np.array([[1.5*self.g],  # z acc constraints
                            [-0.5*self.g],
                            [0.5],  
                            [0.5],
@@ -288,8 +301,8 @@ class Linear_MPC(Controller):
             cost += cp.quad_form(u[:, k] - u_ref_k, self.R)
             # print(self.h[:2].squeeze())
 
-            constr.append(self.Hx @ x[:, k] <= self.h[2:].squeeze())
-            constr.append(self.Hu @ u[:, k] <= self.h[:2].squeeze())
+            constr.append(self.Hx @ x[:, k] <= self.h1[2:].squeeze())
+            constr.append(self.Hu @ u[:, k] <= self.h1[:2].squeeze())
             gravity = np.zeros([12, ])
             gravity[5] = self.dt*self.g  # discritized
             constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
