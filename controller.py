@@ -233,7 +233,7 @@ class Linear_MPC(Controller):
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
                             [-1/self.mass, 0, 0, 0]])  # z acc constraints
         self.h = np.array([[2.5*self.g],  # z acc constraints
-                           [0.5*self.g],
+                           [-0.5*self.g],
                            [0.5],  
                            [0.5],
                            [2.0],#velocity constraints
@@ -245,7 +245,7 @@ class Linear_MPC(Controller):
                            [2.0],
                            [2.0]
                            ])
-        self.h1 = np.array([[1.5*self.g],  # z acc constraints
+        self.h1 = np.array([[2.5*self.g],  # z acc constraints
                            [-0.5*self.g],
                            [0.5],  
                            [0.5],
@@ -272,7 +272,7 @@ class Linear_MPC(Controller):
         x_obs_dist = self.disturbance_observer.x_hat.flatten()
         x_obs_vel = self.vel_observer.x_hat.flatten()
         y = np.block([x_sys[:3], x_sys[6:9]])
-        x_init = x_obs_dist
+        x_init = x_sys
         
         for i in range(3):
             self.x_real[i].append(x_sys[i])
@@ -292,8 +292,8 @@ class Linear_MPC(Controller):
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
-                constr.append(
-                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                # constr.append(
+                #     self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])

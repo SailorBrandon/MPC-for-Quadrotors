@@ -24,16 +24,14 @@ class Terminal_set:
         Ainf = np.zeros([0, self.Nx])
         binf = np.zeros([0, 1])
         Ft = np.eye(self.Nx)
-        # gravity=np.zeros([12, 1])
-        # gravity[6]=self.dt*9.801
-        # gravity[11]=self.dt*9.801
+
         self.C = self.H@self.K_aug
 
         for t in range(self.maxiter):
             Ainf = np.vstack((Ainf, self.C@Ft))
-            # binf = np.vstack((binf, self.h-gravity*(t+1)))
+
             binf = np.vstack((binf, self.h))
-            # print(self.h-gravity*(t+1))
+
             Ft = self.Ak@Ft
             fobj = self.C@Ft
             violation = False
@@ -88,7 +86,6 @@ class Terminal_set:
                 u=-self.K@x
                 inputs[t,index,:]=u.squeeze()
                 x=self.Ak@x
-                x[5]-=9.81*0.01
         t=np.arange(N)
         states=states.transpose((2,1,0))
         inputs=inputs.transpose((2,1,0))
@@ -126,6 +123,14 @@ class Terminal_set:
         plt.title('vz')
         plt.show()
         input()
+    def test_lya_decrease(self,P,Q,R,N=25):
+        A_inf,b_inf=self.Xf_nr
+        vertices=[]
+        for i in range(A_inf.shape[0]):
+            obj = A_inf[i, :]
+            _, x = self.solve_linprog(obj, A_inf, b_inf)
+            vertices.append(x)
+        vertices=np.array(vertices)
 # Hu=np.array([[1,0],[-1,0],[0,1],[0,-1]])
 # Hx=np.array([[1,0],[-1,0]])
 # K=np.array([[-1.35,-0.9],[-0.225,-1.65]])
