@@ -9,7 +9,7 @@ import numpy.linalg as LA
 import control
 import math
 import matplotlib.pyplot as plt
-from nonlinear_mpc_solver import *
+# from nonlinear_mpc_solver import *
 import scipy.io
 
 
@@ -232,7 +232,7 @@ class Linear_MPC(Controller):
                             ])
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
                             [-1/self.mass, 0, 0, 0]])  # z acc constraints
-        self.h = np.array([[2.0*self.g],  # z acc constraints
+        self.h = np.array([[2.5*self.g],  # z acc constraints
                            [0.5*self.g],
                            [0.5],  
                            [0.5],
