@@ -14,19 +14,20 @@ from utils import *
 if __name__=="__main__":
     quad_model = quadrotor.Quadrotor()
     quad_model.reset()
-    simu_freq = 100 # Hz
-    ctrl_freq = 50
-    traj = trajectory.Trajectory("circle")
-    quad_controller = controller.Linear_MPC(traj, ctrl_freq)
-    # quad_controller = controller.PDcontroller(traj, ctrl_freq)
     real_trajectory = {'x': [], 'y': [], 'z': []}
     des_trajectory = {'x': [], 'y': [], 'z': []}
-    
-    # initialize performance matrics
     # accu_error_pos = np.zeros((3, 1))
     # error_pos = np.zeros((3, 1))
     # total_time = 0
     # square_ang_vel = np.zeros((4, ))
+    
+    simu_freq = 100 # Hz
+    ctrl_freq = 50
+    traj = trajectory.Trajectory("circle")
+    
+    quad_controller = controller.Linear_MPC(traj, ctrl_freq, use_obsv=False)
+    # quad_controller = controller.PDcontroller(traj, ctrl_freq)
+    # quad_controller = controller.NonLinear_MPC(traj, ctrl_freq)
 
     simu_time = 10 # sec
     cur_time = 0

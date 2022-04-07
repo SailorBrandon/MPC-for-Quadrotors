@@ -181,18 +181,18 @@ class NonLinear_MPC(Controller):
 
 
 class Linear_MPC(Controller):
-    def __init__(self, traj, ctrl_freq):
+    def __init__(self, traj, ctrl_freq, use_obsv=False):
         Controller.__init__(self, traj, ctrl_freq)
         self.ctrl_freq = ctrl_freq
         self.dt = 1 / self.ctrl_freq
         self.Ad, self.Bd = self.quad_model.get_dLTI(self.dt)
+        
+        self.use_obsv = use_obsv
         self.B_dist = np.block([[np.zeros((3, 3))],
                                 [np.eye(3)],
                                 [np.zeros((3, 3))],
                                 [np.zeros((3, 3))]])
-        
         self.disturbance_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), load_L=False)
-        
         C_obs = np.zeros((6, 12))
         C_obs[:3, :3] = np.eye(3)
         C_obs[3:, 6:9] = np.eye(3)
@@ -292,8 +292,9 @@ class Linear_MPC(Controller):
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
-                constr.append(
-                    self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                if self.use_obsv == False:
+                    constr.append(
+                        self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
@@ -312,9 +313,9 @@ class Linear_MPC(Controller):
         u = u[:, 0].value
         print(u)
 
-        
-        self.disturbance_observer.update(u, x_sys)
-        # self.vel_observer.update(u, y)
+        if self.use_obsv:
+            self.disturbance_observer.update(u, x_sys)
+            self.vel_observer.update(u, y)
         
         control_input = self.generate_control_input(u)
         return control_input, error_pos
