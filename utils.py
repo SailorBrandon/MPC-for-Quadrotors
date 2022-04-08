@@ -41,12 +41,12 @@ class Visualizer:
         ax1.legend(loc='lower right')
 
         def animate(i):
-            line1.set_xdata(self.real_trajectory['x'][:i + 5])
-            line1.set_ydata(self.real_trajectory['y'][:i + 5])
-            line1.set_3d_properties(self.real_trajectory['z'][:i + 5])
-            line2.set_xdata(self.des_trajectory['x'][:i + 5])
-            line2.set_ydata(self.des_trajectory['y'][:i + 5])
-            line2.set_3d_properties(self.des_trajectory['z'][:i + 5])
+            line1.set_xdata(self.real_trajectory['x'][:i + 10])
+            line1.set_ydata(self.real_trajectory['y'][:i + 10])
+            line1.set_3d_properties(self.real_trajectory['z'][:i + 10])
+            line2.set_xdata(self.des_trajectory['x'][:i + 10])
+            line2.set_ydata(self.des_trajectory['y'][:i + 10])
+            line2.set_3d_properties(self.des_trajectory['z'][:i + 10])
             point.set_xdata(self.real_trajectory['x'][i])
             point.set_ydata(self.real_trajectory['y'][i])
             point.set_3d_properties(self.real_trajectory['z'][i])
@@ -59,7 +59,7 @@ class Visualizer:
                                     blit=False)
         plt.show()
         
-    def plot_obsv(self, x_real, x_obsv):
+    def plot_obsv_x(self, x_real, x_obsv):
         t = np.arange(0, self.simu_time, 1/self.ctrl_freq)
         y1 = np.array(x_obsv[0])
         y2 = np.array(x_real[0])
@@ -75,6 +75,16 @@ class Visualizer:
         plt.plot(t, y6, label="z_real")
         plt.title('real vs obsv')
         plt.xlabel('time')
+        plt.legend()
+        plt.show()
+    
+    def plot_obsv_d(self, d_hat_list):
+        t = np.arange(0, self.simu_time, 1/self.ctrl_freq)
+        d_real = [0.02*9.81*0.2 for i in range(len(d_hat_list))]
+        plt.plot(t, d_hat_list, label="d_hat")
+        plt.plot(t, d_real, '--', label="d_real")
+        plt.xlabel('time')
+        plt.ylabel('disturbance')
         plt.legend()
         plt.show()
         

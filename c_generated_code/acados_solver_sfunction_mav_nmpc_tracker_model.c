@@ -54,7 +54,7 @@ static void mdlInitializeSizes (SimStruct *S)
     // specify the number of continuous and discrete states
     ssSetNumContStates(S, 0);
     ssSetNumDiscStates(S, 0);// specify the number of input ports
-    if ( !ssSetNumInputPorts(S, 7) )
+    if ( !ssSetNumInputPorts(S, 9) )
         return;
 
     // specify the number of output ports
@@ -75,7 +75,11 @@ static void mdlInitializeSizes (SimStruct *S)
     // lbu
     ssSetInputPortVectorDimension(S, 5, 40);
     // ubu
-    ssSetInputPortVectorDimension(S, 6, 40);/* specify dimension information for the OUTPUT ports */
+    ssSetInputPortVectorDimension(S, 6, 40);
+    // lh
+    ssSetInputPortVectorDimension(S, 7, 1);
+    // uh
+    ssSetInputPortVectorDimension(S, 8, 1);/* specify dimension information for the OUTPUT ports */
     ssSetOutputPortVectorDimension(S, 0, 4 );
     ssSetOutputPortVectorDimension(S, 1, 1 );
     ssSetOutputPortVectorDimension(S, 2, 1 );
@@ -92,6 +96,8 @@ static void mdlInitializeSizes (SimStruct *S)
     ssSetInputPortDirectFeedThrough(S, 4, 1);
     ssSetInputPortDirectFeedThrough(S, 5, 1);
     ssSetInputPortDirectFeedThrough(S, 6, 1);
+    ssSetInputPortDirectFeedThrough(S, 7, 1);
+    ssSetInputPortDirectFeedThrough(S, 8, 1);
 
     // one sample time
     ssSetNumSampleTimes(S, 1);
@@ -204,6 +210,22 @@ static void mdlOutputs(SimStruct *S, int_T tid)
             buffer[jj] = (double)(*in_sign[ii*4+jj]);
         ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, ii, "ubu", (void *) buffer);
     }
+    // lh
+    in_sign = ssGetInputPortRealSignalPtrs(S, 7);
+
+    for (int i = 0; i < 1; i++)
+        buffer[i] = (double)(*in_sign[i]);
+
+    for (int ii = 0; ii < 10; ii++)
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, ii, "lh", buffer);
+    // uh
+    in_sign = ssGetInputPortRealSignalPtrs(S, 8);
+
+    for (int i = 0; i < 1; i++)
+        buffer[i] = (double)(*in_sign[i]);
+
+    for (int ii = 0; ii < 10; ii++)
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, ii, "uh", buffer);
 
     /* call solver */
     int rti_phase = 0;
