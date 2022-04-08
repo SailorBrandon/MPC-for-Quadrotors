@@ -45,6 +45,8 @@ MODEL_OBJ := $(MODEL_SRC:.c=.o)
 
 # optimal control problem - mostly CasADi exports
 OCP_SRC=
+OCP_SRC+= mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun_jac_uxt_zt.c
+OCP_SRC+= mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_constr_h_fun.c
 OCP_SRC+= acados_solver_mav_nmpc_tracker_model.c
 OCP_OBJ := $(OCP_SRC:.c=.o)
 

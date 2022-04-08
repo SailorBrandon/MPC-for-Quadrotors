@@ -9,7 +9,7 @@ import numpy.linalg as LA
 import control
 import math
 import matplotlib.pyplot as plt
-# from nonlinear_mpc_solver import *
+from nonlinear_mpc_solver import *
 import scipy.io
 
 
@@ -146,7 +146,7 @@ class NonLinear_MPC(Controller):
         self.param = MPC_Formulation_Param()
         self.param.set_horizon(dt=1/self.ctrl_freq, N=10)
         self.solver = acados_mpc_solver_generation(
-            self.param, collision_avoidance=False)
+            self.param, collision_avoidance=True)
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
@@ -186,38 +186,24 @@ class Linear_MPC(Controller):
         self.ctrl_freq = ctrl_freq
         self.dt = 1 / self.ctrl_freq
         self.Ad, self.Bd = self.quad_model.get_dLTI(self.dt)
-        
+        self.gravity = np.zeros([12, ])
+        self.gravity[5] = self.dt*self.g  # discritized
         self.use_obsv = use_obsv
         self.B_dist = np.block([[np.zeros((3, 3))],
                                 [np.eye(3)],
                                 [np.zeros((3, 3))],
                                 [np.zeros((3, 3))]])
-        self.disturbance_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), load_L=False)
-        C_obs = np.zeros((6, 12))
-        C_obs[:3, :3] = np.eye(3)
-        C_obs[3:, 6:9] = np.eye(3)
-        self.vel_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs, C_dist=np.zeros((6, 3)), load_L=True)
+        self.disturbance_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), gravity=self.gravity, load_L=False)
+        self.x_real = [[], [], []]
+        self.x_obsv = [[], [], []]
+        self.d_hat_list = []
         
         self.N = 10  # the number of predicted steps TODO
-        # C = control.ctrb(self.Ad, self.Bd) # rank(C)=12, controllable
-        # subQ_pos = np.block([[1.2e5*np.eye(3), np.zeros((3, 3))],
-        #                      [np.zeros((3, 3)), 8e2*np.eye(3)]])
-        # subQ_ang = np.block([[5e3*np.eye(3), np.zeros((3, 3))],
-        #                      [np.zeros((3, 3)), 0e2*np.eye(3)]])
-        # self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
-        #                    [np.zeros((6, 6)), subQ_ang]])
-        subQ_pos = np.block([[1e3*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 1e2*np.eye(3)]])
-        subQ_ang = np.block([[1e3*np.eye(3), np.zeros((3, 3))],
-                             [np.zeros((3, 3)), 1e2*np.eye(3)]])
-        self.Q = np.block([[subQ_pos, np.zeros((6, 6))],
-                           [np.zeros((6, 6)), subQ_ang]])
-        # self.Q = 1e4*np.eye(12)
-        self.R = 1e1*np.eye(4)
-        self.P, self.K = self.get_terminal_cost(
-            self.Ad, self.Bd, self.Q, self.R)
+        self.Q = np.diag([80, 80, 100, 80, 80, 100, 50, 50, 50, 50, 50, 50])
+        self.R = np.diag([10, 20, 20, 20])
+        self.P, self.K = self.get_terminal_cost(self.Ad, self.Bd, self.Q, self.R)
 
-        self.Ak = self.Ad-self.Bd@self.K
+        self.Ak = self.Ad - self.Bd@self.K
         self.Hx = np.array([
                             [0, 0, 0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0],  # roll pitch constraints
                             [0, 0, 0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0],
@@ -261,8 +247,7 @@ class Linear_MPC(Controller):
         self.terminal_set = Terminal_set(
             self.Hx, self.Hu, self.K, self.Ak, self.h)
         self.Xf_nr = self.terminal_set.Xf_nr
-        self.x_real = [[], [], []]
-        self.x_obsv = [[], [], []]
+
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
@@ -270,21 +255,19 @@ class Linear_MPC(Controller):
 
         x_sys = self.state2x(obs_state)
         x_obs_dist = self.disturbance_observer.x_hat.flatten()
-        x_obs_vel = self.vel_observer.x_hat.flatten()
-        y = np.block([x_sys[:3], x_sys[6:9]])
         x_init = x_sys
         
         for i in range(3):
             self.x_real[i].append(x_sys[i])
-            self.x_obsv[i].append(x_obs_vel[i])
-
+            self.x_obsv[i].append(x_obs_dist[i])
+        d_hat = self.disturbance_observer.d_hat
+        self.d_hat_list.append(d_hat[1])
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
         cost = 0
         constr = []
         mpc_time = cur_time
         desired_x = []
-        d_hat = self.disturbance_observer.d_hat
         for k in range(self.N+1):
             mpc_time += k * self.dt
             des_state_ahead = self.traj.get_des_state(mpc_time)
@@ -302,10 +285,9 @@ class Linear_MPC(Controller):
 
             constr.append(self.Hx @ x[:, k] <= self.h1[2:].squeeze())
             constr.append(self.Hu @ u[:, k] <= self.h1[:2].squeeze())
-            gravity = np.zeros([12, ])
-            gravity[5] = self.dt*self.g  # discritized
+            
             constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
-                          self.Bd @ u[:, k] - gravity + (self.B_dist@d_hat).flatten())
+                          self.Bd @ u[:, k] - self.gravity + (self.B_dist@d_hat).flatten())
 
         constr.append(x[:, 0] == x_init)
         problem = cp.Problem(cp.Minimize(cost), constr)
@@ -315,7 +297,6 @@ class Linear_MPC(Controller):
 
         if self.use_obsv:
             self.disturbance_observer.update(u, x_sys)
-            self.vel_observer.update(u, y)
         
         control_input = self.generate_control_input(u)
         return control_input, error_pos
@@ -326,14 +307,17 @@ class Linear_MPC(Controller):
 
 
 class Luenberger_Observer:
-    def __init__(self, A, B, B_dist, C, C_dist, load_L=False):
-        self.x_hat = np.zeros((12, 1))
+    def __init__(self, A, B, B_dist, C, C_dist, gravity, load_L=False):
+        self.x_hat = np.zeros((12, 1))+0.1
         self.d_hat = np.zeros((3, 1))
         self.A_sq = np.block([[A, B_dist],
                               [np.zeros((3, 12)), np.eye(3)]])
         self.B_sq = np.block([[B],
                               [np.zeros((3, 4))]])
         self.C_sq = np.block([C, C_dist])
+        self.gravity = np.block([[gravity.reshape(-1, 1)],
+                               [np.zeros((3, 1))]])
+        
         if load_L:
             file_path = 'saveL.mat'
             mat = scipy.io.loadmat(file_path)
@@ -347,7 +331,7 @@ class Luenberger_Observer:
                               [self.d_hat]])
         exd_state = self.A_sq@exd_state + \
             self.B_sq@u.reshape(-1, 1) + \
-            self.L@(y.reshape(-1, 1) - self.C_sq@exd_state)
+            self.L@(y.reshape(-1, 1) - self.C_sq@exd_state) - self.gravity
         self.x_hat = exd_state[:12]
         self.d_hat = exd_state[12:]
 

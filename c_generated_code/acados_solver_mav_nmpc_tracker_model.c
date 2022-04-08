@@ -45,6 +45,8 @@
 
 
 
+#include "mav_nmpc_tracker_model_constraints/mav_nmpc_tracker_model_h_constraint.h"
+
 
 
 #include "acados_solver_mav_nmpc_tracker_model.h"
@@ -271,6 +273,8 @@ ocp_nlp_dims* mav_nmpc_tracker_model_acados_create_2_create_and_set_dimensions(m
 
     for (int i = 0; i < N; i++)
     {
+        ocp_nlp_dims_set_constraints(nlp_config, nlp_dims, i, "nh", &nh[i]);
+        ocp_nlp_dims_set_constraints(nlp_config, nlp_dims, i, "nsh", &nsh[i]);
     }
     ocp_nlp_dims_set_constraints(nlp_config, nlp_dims, N, "nh", &nh[N]);
     ocp_nlp_dims_set_constraints(nlp_config, nlp_dims, N, "nsh", &nsh[N]);
@@ -302,6 +306,17 @@ void mav_nmpc_tracker_model_acados_create_3_create_and_set_functions(mav_nmpc_tr
         external_function_param_casadi_create(&capsule->__CAPSULE_FNC__ , 0); \
     }while(false)
 
+
+    // constraints.constr_type == "BGH" and dims.nh > 0
+    capsule->nl_constr_h_fun_jac = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*N);
+    for (int i = 0; i < N; i++) {
+        MAP_CASADI_FNC(nl_constr_h_fun_jac[i], mav_nmpc_tracker_model_constr_h_fun_jac_uxt_zt);
+    }
+    capsule->nl_constr_h_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*N);
+    for (int i = 0; i < N; i++) {
+        MAP_CASADI_FNC(nl_constr_h_fun[i], mav_nmpc_tracker_model_constr_h_fun);
+    }
+    
 
 
 
@@ -371,22 +386,22 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
     /**** Cost ****/
     double* W_0 = calloc(NY0*NY0, sizeof(double));
     // change only the non-zero elements:
-    W_0[0+(NY0) * 0] = 100;
-    W_0[1+(NY0) * 1] = 100;
-    W_0[2+(NY0) * 2] = 100;
-    W_0[3+(NY0) * 3] = 10;
-    W_0[4+(NY0) * 4] = 10;
-    W_0[5+(NY0) * 5] = 10;
+    W_0[0+(NY0) * 0] = 80;
+    W_0[1+(NY0) * 1] = 80;
+    W_0[2+(NY0) * 2] = 120;
+    W_0[3+(NY0) * 3] = 80;
+    W_0[4+(NY0) * 4] = 80;
+    W_0[5+(NY0) * 5] = 100;
     W_0[6+(NY0) * 6] = 50;
     W_0[7+(NY0) * 7] = 50;
     W_0[8+(NY0) * 8] = 50;
-    W_0[9+(NY0) * 9] = 1;
-    W_0[10+(NY0) * 10] = 1;
-    W_0[11+(NY0) * 11] = 1;
+    W_0[9+(NY0) * 9] = 10;
+    W_0[10+(NY0) * 10] = 10;
+    W_0[11+(NY0) * 11] = 10;
     W_0[12+(NY0) * 12] = 1;
-    W_0[13+(NY0) * 13] = 1;
-    W_0[14+(NY0) * 14] = 1;
-    W_0[15+(NY0) * 15] = 1;
+    W_0[13+(NY0) * 13] = 50;
+    W_0[14+(NY0) * 14] = 50;
+    W_0[15+(NY0) * 15] = 50;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "W", W_0);
     free(W_0);
 
@@ -396,22 +411,22 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
     free(yref_0);
     double* W = calloc(NY*NY, sizeof(double));
     // change only the non-zero elements:
-    W[0+(NY) * 0] = 100;
-    W[1+(NY) * 1] = 100;
-    W[2+(NY) * 2] = 100;
-    W[3+(NY) * 3] = 10;
-    W[4+(NY) * 4] = 10;
-    W[5+(NY) * 5] = 10;
+    W[0+(NY) * 0] = 80;
+    W[1+(NY) * 1] = 80;
+    W[2+(NY) * 2] = 120;
+    W[3+(NY) * 3] = 80;
+    W[4+(NY) * 4] = 80;
+    W[5+(NY) * 5] = 100;
     W[6+(NY) * 6] = 50;
     W[7+(NY) * 7] = 50;
     W[8+(NY) * 8] = 50;
-    W[9+(NY) * 9] = 1;
-    W[10+(NY) * 10] = 1;
-    W[11+(NY) * 11] = 1;
+    W[9+(NY) * 9] = 10;
+    W[10+(NY) * 10] = 10;
+    W[11+(NY) * 11] = 10;
     W[12+(NY) * 12] = 1;
-    W[13+(NY) * 13] = 1;
-    W[14+(NY) * 14] = 1;
-    W[15+(NY) * 15] = 1;
+    W[13+(NY) * 13] = 50;
+    W[14+(NY) * 14] = 50;
+    W[15+(NY) * 15] = 50;
 
     double* yref = calloc(NY, sizeof(double));
     // change only the non-zero elements:
@@ -481,6 +496,22 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
         ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "Vu", Vu);
     }
     free(Vu);
+    double* zlumem = calloc(4*NS, sizeof(double));
+    double* Zl = zlumem+NS*0;
+    double* Zu = zlumem+NS*1;
+    double* zl = zlumem+NS*2;
+    double* zu = zlumem+NS*3;
+    // change only the non-zero elements:
+    Zl[0] = 100000;
+
+    for (int i = 0; i < N; i++)
+    {
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "Zl", Zl);
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "Zu", Zu);
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "zl", zl);
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "zu", zu);
+    }
+    free(zlumem);
 
     // terminal cost
     double* yref_e = calloc(NYN, sizeof(double));
@@ -490,12 +521,12 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
 
     double* W_e = calloc(NYN*NYN, sizeof(double));
     // change only the non-zero elements:
-    W_e[0+(NYN) * 0] = 50;
-    W_e[1+(NYN) * 1] = 50;
-    W_e[2+(NYN) * 2] = 50;
-    W_e[3+(NYN) * 3] = 50;
-    W_e[4+(NYN) * 4] = 50;
-    W_e[5+(NYN) * 5] = 50;
+    W_e[0+(NYN) * 0] = 80;
+    W_e[1+(NYN) * 1] = 80;
+    W_e[2+(NYN) * 2] = 120;
+    W_e[3+(NYN) * 3] = 80;
+    W_e[4+(NYN) * 4] = 80;
+    W_e[5+(NYN) * 5] = 100;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "W", W_e);
     free(W_e);
     double* Vx_e = calloc(NYN*NX, sizeof(double));
@@ -591,6 +622,23 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
 
 
 
+    // set up soft bounds for nonlinear constraints
+    int* idxsh = malloc(NSH * sizeof(int));
+    
+    idxsh[0] = 0;
+    double* lush = calloc(2*NSH, sizeof(double));
+    double* lsh = lush;
+    double* ush = lush + NSH;
+    
+
+    for (int i = 0; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "idxsh", idxsh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lsh", lsh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "ush", ush);
+    }
+    free(idxsh);
+    free(lush);
 
 
 
@@ -599,6 +647,29 @@ void mav_nmpc_tracker_model_acados_create_5_set_nlp_in(mav_nmpc_tracker_model_so
 
 
 
+    // set up nonlinear constraints for stage 0 to N-1
+    double* luh = calloc(2*NH, sizeof(double));
+    double* lh = luh;
+    double* uh = luh + NH;
+
+    
+    lh[0] = 0.09;
+
+    
+    uh[0] = 0.8999999999999999;
+    
+    for (int i = 0; i < N; i++)
+    {
+        // nonlinear constraints for stages 0 to N-1
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun_jac",
+                                      &capsule->nl_constr_h_fun_jac[i]);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun",
+                                      &capsule->nl_constr_h_fun[i]);
+        
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lh", lh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "uh", uh);
+    }
+    free(luh);
 
 
 
@@ -923,6 +994,13 @@ int mav_nmpc_tracker_model_acados_free(mav_nmpc_tracker_model_solver_capsule* ca
     // cost
 
     // constraints
+    for (int i = 0; i < N; i++)
+    {
+        external_function_param_casadi_free(&capsule->nl_constr_h_fun_jac[i]);
+        external_function_param_casadi_free(&capsule->nl_constr_h_fun[i]);
+    }
+    free(capsule->nl_constr_h_fun_jac);
+    free(capsule->nl_constr_h_fun);
 
     return 0;
 }

@@ -26,30 +26,30 @@ class MPC_Formulation_Param:
 
     
     # state cost weights
-    q_x = 100
-    q_y = 100
-    q_z = 100
-    q_vx = 10
-    q_vy = 10
-    q_vz = 10
+    q_x = 80
+    q_y = 80
+    q_z = 120
+    q_vx = 80
+    q_vy = 80
+    q_vz = 100
     q_roll = 50
     q_pitch = 50
     q_yaw = 50
-    q_roll_rate = 1
-    q_pitch_rate = 1
-    q_yaw_rate = 1
+    q_roll_rate = 10
+    q_pitch_rate = 10
+    q_yaw_rate = 10
     r_thrust = 1
-    r_roll = 1
-    r_pitch = 1
-    r_yaw = 1
+    r_roll = 50
+    r_pitch = 50
+    r_yaw = 50
     
     # terminal cost weights
-    q_x_terminal = 50
-    q_y_terminal = 50
-    q_z_terminal = 50
-    q_vx_terminal = 50
-    q_vy_terminal = 50
-    q_vz_terminal = 50
+    q_x_terminal = 80
+    q_y_terminal = 80
+    q_z_terminal = 120
+    q_vx_terminal = 80
+    q_vy_terminal = 80
+    q_vz_terminal = 100
     
     def set_horizon(self, dt, N):
         self.dt = dt
@@ -164,7 +164,7 @@ def acados_mpc_solver_generation(mpc_form_param, collision_avoidance = False):
 
     # collision avoidance
     obstacle = np.array([0, 0.5, 0.5])
-    distance = 0.5
+    distance = 0.3
     con_h_expr = (px - obstacle[0])**2 + (py - obstacle[1])**2 + (pz - obstacle[2])**2
     if collision_avoidance == True:
         model.con_h_expr = con_h_expr

@@ -2,9 +2,10 @@ import numpy as np
 import cvxpy as cp
 import matplotlib.pyplot as plt
 
+
 class Terminal_set:
     def __init__(self, Hx, Hu, K, Ak, h):
-        self.dt=0.01
+        self.dt = 0.01
         self.Hx = Hx
         self.Hu = Hu
         self.K = K
@@ -20,6 +21,7 @@ class Terminal_set:
         # self.Xf_nr = self.Xf
         self.Xf_nr = self.remove_redundancy()
         # self.LQR_control()
+
     def terminal_set_cal(self):
         Ainf = np.zeros([0, self.Nx])
         binf = np.zeros([0, 1])
@@ -50,7 +52,7 @@ class Terminal_set:
         objective = cp.Maximize(obj@x)
         constraints = [Ainf@x <= binf]
         linear_program = cp.Problem(objective, constraints)
-        result = linear_program.solve(verbose=False,max_iters=10000)
+        result = linear_program.solve(verbose=False, max_iters=10000)
         # print('result=',result)
         # print('x=',x.value)
         return result, x.value
@@ -70,57 +72,57 @@ class Terminal_set:
             else:
                 i += 1
         return [Ainf_nr, binf_nr]
-    
-    def LQR_control(self,N=100):
-        A_inf,b_inf=self.Xf_nr
-        vertices=[]
+
+    def LQR_control(self, N=100):
+        A_inf, b_inf = self.Xf_nr
+        vertices = []
         for i in range(A_inf.shape[0]):
             obj = A_inf[i, :]
             _, x = self.solve_linprog(obj, A_inf, b_inf)
             vertices.append(x)
-        vertices=np.array(vertices)
-        states=np.zeros([N,vertices.shape[0],12])
-        inputs=np.zeros([N,vertices.shape[0],4])
+        vertices = np.array(vertices)
+        states = np.zeros([N, vertices.shape[0], 12])
+        inputs = np.zeros([N, vertices.shape[0], 4])
         for index in range(vertices.shape[0]):
-            x=vertices[index].copy()
+            x = vertices[index].copy()
             for t in range(N):
-                states[t,index,:]=x.squeeze()
-                u=-self.K@x
-                inputs[t,index,:]=u.squeeze()
-                x=self.Ak@x
-                x[5]-=9.81*0.01
-        t=np.arange(N)
-        states=states.transpose((2,1,0))
-        inputs=inputs.transpose((2,1,0))
+                states[t, index, :] = x.squeeze()
+                u = -self.K@x
+                inputs[t, index, :] = u.squeeze()
+                x = self.Ak@x
+                x[5] -= 9.81*0.01
+        t = np.arange(N)
+        states = states.transpose((2, 1, 0))
+        inputs = inputs.transpose((2, 1, 0))
         i = 0
-        vertex=42
+        vertex = 42
         plt.subplot(2, 3, 1)
-        plt.plot(t, states[0+i,vertex,:])
+        plt.plot(t, states[0+i, vertex, :])
         plt.xlabel('t')
         plt.ylabel('state value')
         plt.title('x')
         plt.subplot(2, 3, 2)
-        plt.plot(t, states[i+1,vertex,:])
+        plt.plot(t, states[i+1, vertex, :])
         plt.xlabel('t')
         plt.ylabel('state value')
         plt.title('y')
         plt.subplot(2, 3, 3)
-        plt.plot(t, states[i+2,vertex,:])
+        plt.plot(t, states[i+2, vertex, :])
         plt.xlabel('t')
         plt.ylabel('state value')
         plt.title('z')
         plt.subplot(2, 3, 4)
-        plt.plot(t, states[i+3,vertex,:])
+        plt.plot(t, states[i+3, vertex, :])
         plt.xlabel('t')
         plt.ylabel('state value')
         plt.title('vx')
         plt.subplot(2, 3, 5)
-        plt.plot(t, states[i+4,vertex,:])
+        plt.plot(t, states[i+4, vertex, :])
         plt.xlabel('t')
         plt.ylabel('state value')
         plt.title('vy')
         plt.subplot(2, 3, 6)
-        plt.plot(t, states[i+5,vertex,:])
+        plt.plot(t, states[i+5, vertex, :])
         plt.xlabel('t')
         plt.ylabel('state value')
         plt.title('vz')
@@ -137,11 +139,11 @@ class Terminal_set:
 # print('Ainf_nr',Ter_set.Xf_nr[0])
 # print('binf_nr',Ter_set.Xf_nr[1])
 
-    def test_lya_decrease(self,P,Q,R,N=25):
-        A_inf,b_inf=self.Xf_nr
-        vertices=[]
+    def test_lya_decrease(self, P, Q, R, N=25):
+        A_inf, b_inf = self.Xf_nr
+        vertices = []
         for i in range(A_inf.shape[0]):
             obj = A_inf[i, :]
             _, x = self.solve_linprog(obj, A_inf, b_inf)
             vertices.append(x)
-        vertices=np.array(vertices)
+        vertices = np.array(vertices)

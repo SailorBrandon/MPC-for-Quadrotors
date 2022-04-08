@@ -23,10 +23,10 @@ if __name__=="__main__":
     
     simu_freq = 100 # Hz
     ctrl_freq = 50
-    traj = trajectory.Trajectory("circle")
+    traj = trajectory.Trajectory("diamond")
     
-    quad_controller = controller.Linear_MPC(traj, ctrl_freq, use_obsv=False)
-    # quad_controller = controller.PDcontroller(traj, ctrl_freq)
+    # quad_controller = controller.Linear_MPC(traj, ctrl_freq, use_obsv=True)
+    quad_controller = controller.PDcontroller(traj, ctrl_freq)
     # quad_controller = controller.NonLinear_MPC(traj, ctrl_freq)
 
     simu_time = 10 # sec
@@ -67,7 +67,12 @@ if __name__=="__main__":
     
     '''Visualization'''
     visualizer = Visualizer(simu_time, simu_freq, ctrl_freq, real_trajectory, des_trajectory)
-    # visualizer.plot_obsv(quad_controller.x_real, quad_controller.x_obsv)
     visualizer.plot_tracking_performance()
+    try:
+        if quad_controller.use_obsv == True:
+            visualizer.plot_obsv_x(quad_controller.x_real, quad_controller.x_obsv)
+            visualizer.plot_obsv_d(quad_controller.d_hat_list)
+    except:
+        pass
     visualizer.animation_3d()
     
