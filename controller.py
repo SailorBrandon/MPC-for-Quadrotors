@@ -137,20 +137,20 @@ class PDcontroller(Controller):
         u = np.vstack((u1, u2))
         print("control input: ", u)
         control_input = self.generate_control_input(u)
-        return control_input, error_pos
+        return control_input, error_pos.flatten()
 
 
 class NonLinear_MPC(Controller):
     def __init__(self, traj, ctrl_freq):
         super().__init__(traj, ctrl_freq)
         self.param = MPC_Formulation_Param()
-        self.param.set_horizon(dt=1/self.ctrl_freq, N=10)
+        self.param.set_horizon(dt=1/self.ctrl_freq, N=5)
         self.solver = acados_mpc_solver_generation(
-            self.param, collision_avoidance=True)
+            self.param, collision_avoidance=False)
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
-        error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
+        error_pos = (des_state.get('x') - obs_state.get('x').reshape(3, 1)).flatten()
 
         x_init = self.state2x(obs_state)
         self.solver.set(0, "lbx", x_init)
@@ -198,9 +198,9 @@ class Linear_MPC(Controller):
         self.x_obsv = [[], [], []]
         self.d_hat_list = []
         
-        self.N = 10  # the number of predicted steps TODO
+        self.N = 5  # the number of predicted steps TODO
         self.Q = np.diag([80, 80, 100, 80, 80, 100, 50, 50, 50, 50, 50, 50])
-        self.R = np.diag([10, 20, 20, 20])
+        self.R = np.diag([50, 80, 80, 80])
         self.P, self.K = self.get_terminal_cost(self.Ad, self.Bd, self.Q, self.R)
 
         self.Ak = self.Ad - self.Bd@self.K
@@ -251,7 +251,7 @@ class Linear_MPC(Controller):
 
     def control(self, cur_time, obs_state):
         des_state = self.traj.get_des_state(cur_time)
-        error_pos = des_state.get('x') - obs_state.get('x').reshape(3, 1)
+        error_pos = (des_state.get('x') - obs_state.get('x').reshape(3, 1)).flatten()
 
         x_sys = self.state2x(obs_state)
         x_obs_dist = self.disturbance_observer.x_hat.flatten()

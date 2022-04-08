@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 from matplotlib import animation
+import csv
 
 class Visualizer:
     def __init__(self, simu_time, simu_freq, ctrl_freq, real_trajectory, des_trajectory) -> None:
@@ -20,6 +21,8 @@ class Visualizer:
         self.des_trajectory['x'] = np.array(self.des_trajectory['x'])
         self.des_trajectory['y'] = np.array(self.des_trajectory['y'])
         self.des_trajectory['z'] = np.array(self.des_trajectory['z'])
+        self.file_data = open('./data.csv', 'a')
+        
 
     def animation_3d(self):
         fig = plt.figure()
@@ -100,4 +103,9 @@ class Visualizer:
         plt.xlabel('time')
         plt.legend()
         plt.show()
+    
+    def record_tracking_data(self):
+        writer = csv.writer(self.file_data)
+        writer.writerow(self.real_trajectory['x'])
+        writer.writerow(self.des_trajectory['x'])
         
