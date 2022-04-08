@@ -52,7 +52,9 @@ class Terminal_set:
         objective = cp.Maximize(obj@x)
         constraints = [Ainf@x <= binf]
         linear_program = cp.Problem(objective, constraints)
-        result = linear_program.solve(verbose=False, max_iters=10000)
+
+        result = linear_program.solve(verbose=False)
+
         # print('result=',result)
         # print('x=',x.value)
         return result, x.value
@@ -128,6 +130,29 @@ class Terminal_set:
         plt.title('vz')
         plt.show()
         input()
+        
+    def test_input_inbound(self,u_limit):
+        A_inf,b_inf=self.Xf_nr
+        violation =False
+        for i in range(4):
+            x = cp.Variable((12, 1))
+            u = cp.Variable((4, 1))
+            cost=0
+            constr = []
+            constr.append(A_inf@x[:,0] <= b_inf.squeeze())
+            constr.append(u[:, 0]==-self.K@x[:,0])
+            # constr.append(self.Ak@x[:,0]==x[:,1])
+            cost=u[i, 0]
+            # cost+= cp.quad_form(self.Ak@x[:,0], P)
+            # cost-=cp.quad_form(x[:, 0], P)
+            # cost+=(cp.quad_form(x[:, 0], Q) + cp.quad_form(u[:, 0], R))
+            problem = cp.Problem(cp.Maximize(cost), constr)
+            problem.solve()
+            print('Input u',i,'<',problem.value)
+            if problem.value >u_limit:
+                violation =True
+        if violation ==False:
+            print('Input inbound')
 # Hu=np.array([[1,0],[-1,0],[0,1],[0,-1]])
 # Hx=np.array([[1,0],[-1,0]])
 # K=np.array([[-1.35,-0.9],[-0.225,-1.65]])
