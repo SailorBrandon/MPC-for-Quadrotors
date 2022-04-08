@@ -228,10 +228,22 @@ class Linear_MPC(Controller):
                             [0, 0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 0],
                             [0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0, 0, 0],
                             [0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0]
+                            [0, 0, 0, 0, 0, -1.0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 1.0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, 0, -1.0, 0, 0, 0],
                             ])
         self.Hu = np.array([[1/self.mass, 0, 0, 0],
-                            [-1/self.mass, 0, 0, 0]])  # z acc constraints
+                            [-1/self.mass, 0, 0, 0]
+                            ])  # z acc constraints
+        self.Hu1 = np.array([[1/self.mass, 0, 0, 0],
+                            [-1/self.mass, 0, 0, 0],
+                            [0, 1.0, 0, 0],
+                            [0, -1.0, 0, 0],
+                            [0, 0, 1.0, 0],
+                            [0, 0, -1.0, 0],
+                            [0, 0, 0, 1.0],
+                            [0, 0, 0, -1.0]
+                            ])
         self.h = np.array([[0.5*self.g],  # z acc constraints
                            [0.5*self.g],
                            [0.5],  
@@ -243,10 +255,18 @@ class Linear_MPC(Controller):
                            [0.5],
                            [2.0],
                            [2.0],
-                           [2.0]
+                           [2.0],
+                           [0.5],  
+                           [0.5]
                            ])
         self.h1 = np.array([[1.5*self.g],  # z acc constraints
                            [-0.5*self.g],
+                           [0.15],  
+                           [0.15],
+                           [0.15],
+                           [0.15],  
+                           [0.15],  
+                           [0.15],
                            [0.5],  
                            [0.5],
                            [2.0],#velocity constraints
@@ -256,11 +276,15 @@ class Linear_MPC(Controller):
                            [0.5],
                            [2.0],
                            [2.0],
-                           [2.0]
+                           [2.0],
+                           [0.5],  
+                           [0.5]
                            ])
         self.terminal_set = Terminal_set(
             self.Hx, self.Hu, self.K, self.Ak, self.h)
         self.Xf_nr = self.terminal_set.Xf_nr
+        self.terminal_set.test_input_inbound(u_limit=0.15)
+        # raise NotImplementedError()
         self.x_real = [[], [], []]
         self.x_obsv = [[], [], []]
 
@@ -299,8 +323,8 @@ class Linear_MPC(Controller):
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             cost += cp.quad_form(u[:, k] - u_ref_k, self.R)
 
-            constr.append(self.Hx @ x[:, k] <= self.h1[2:].squeeze())
-            constr.append(self.Hu @ u[:, k] <= self.h1[:2].squeeze())
+            constr.append(self.Hx @ x[:, k] <= self.h1[self.Hu1.shape[0]:].squeeze())
+            constr.append(self.Hu1 @ u[:, k] <= self.h1[:self.Hu1.shape[0]].squeeze())
             gravity = np.zeros([12, ])
             gravity[5] = self.dt*self.g  # discritized
             constr.append(x[:, k + 1] == self.Ad @ x[:, k] +
