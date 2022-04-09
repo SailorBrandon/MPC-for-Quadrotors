@@ -26,7 +26,7 @@ if __name__=="__main__":
     ctrl_freq = 50
     traj = trajectory.Trajectory("diamond")
     
-    quad_controller = controller.Linear_MPC(traj, ctrl_freq, use_obsv=False)
+    quad_controller = controller.Linear_MPC(traj, ctrl_freq, use_obsv=True)
     # quad_controller = controller.PDcontroller(traj, ctrl_freq)
     # quad_controller = controller.NonLinear_MPC(traj, ctrl_freq)
 

@@ -9,7 +9,7 @@ import numpy.linalg as LA
 import control
 import math
 import matplotlib.pyplot as plt
-from nonlinear_mpc_solver import *
+# from nonlinear_mpc_solver import *
 import scipy.io
 
 
@@ -194,6 +194,10 @@ class Linear_MPC(Controller):
                                 [np.zeros((3, 3))],
                                 [np.zeros((3, 3))]])
         self.disturbance_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=np.eye(12), C_dist=np.zeros((12, 3)), gravity=self.gravity, load_L=False)
+        C_obs = np.zeros((6, 12))
+        C_obs[:3, :3] = np.eye(3)
+        C_obs[3:, 6:9] = np.eye(3)
+        self.vel_observer = Luenberger_Observer(self.Ad, self.Bd, self.B_dist, C=C_obs, C_dist=np.zeros((6, 3)),gravity=self.gravity, load_L=True)
         self.x_real = [[], [], []]
         self.x_obsv = [[], [], []]
         self.d_hat_list = []
@@ -245,8 +249,8 @@ class Linear_MPC(Controller):
                            [0.5],  
                            [0.5]
                            ])
-        self.h1 = np.array([[1.5*self.g],  # z acc constraints
-                           [-0.5*self.g],
+        self.h1 = np.array([[2.5*self.g],  # z acc constraints
+                           [-1.5*self.g],
                            [0.15],  
                            [0.15],
                            [0.15],
@@ -282,13 +286,21 @@ class Linear_MPC(Controller):
 
         x_sys = self.state2x(obs_state)
         x_obs_dist = self.disturbance_observer.x_hat.flatten()
+        x_obs_vel = self.vel_observer.x_hat.flatten()
+        y = np.block([x_sys[:3], x_sys[6:9]])
+        # x_init = np.zeros(12)
+        # x_init[:3] = x_sys[:3]
+        # x_init[6:9] = x_sys[6:9]
+        # x_init[3:6] = x_obs_vel[3:6]
+        # x_init[9:12] = x_obs_vel[9:12]
+        # d_hat = self.vel_observer.d_hat
         x_init = x_sys
-        
-        for i in range(3):
-            self.x_real[i].append(x_sys[i])
-            self.x_obsv[i].append(x_obs_dist[i])
         d_hat = self.disturbance_observer.d_hat
         self.d_hat_list.append(d_hat[1])
+        for i in range(3, 6):
+            self.x_real[i-3].append(x_sys[i])
+            self.x_obsv[i-3].append(x_obs_vel[i])
+        
         x = cp.Variable((12, self.N+1))
         u = cp.Variable((4, self.N))
         cost = 0
@@ -302,17 +314,16 @@ class Linear_MPC(Controller):
             desired_x.append(x_ref_k)
             if k == self.N:
                 cost += cp.quad_form(x[:, self.N]-x_ref_k, self.P)
-                if self.use_obsv == False:
-                    constr.append(
-                        self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
+                # if self.use_obsv == False:
+                #     constr.append(
+                #         self.Xf_nr[0] @ (x[:, self.N]-x_ref_k) <= self.Xf_nr[1].squeeze())
                 break
             cost += cp.quad_form(x[:, k] - x_ref_k, self.Q)
             u_ref_k = np.array([self.mass*self.g, 0, 0, 0])
             cost += cp.quad_form(u[:, k] - u_ref_k, self.R)
 
-
-            constr.append(self.Hx @ x[:, k] <= self.h1[self.Hu1.shape[0]:].squeeze())
-            constr.append(self.Hu1 @ u[:, k] <= self.h1[:self.Hu1.shape[0]].squeeze())
+            # constr.append(self.Hx @ x[:, k] <= self.h1[self.Hu1.shape[0]:].squeeze())
+            # constr.append(self.Hu1 @ u[:, k] <= self.h1[:self.Hu1.shape[0]].squeeze())
             gravity = np.zeros([12, ])
             gravity[5] = self.dt*self.g  # discritized
 
@@ -328,6 +339,7 @@ class Linear_MPC(Controller):
 
         if self.use_obsv:
             self.disturbance_observer.update(u, x_sys)
+            self.vel_observer.update(u, y)
         
         control_input = self.generate_control_input(u)
         return control_input, error_pos
@@ -350,7 +362,7 @@ class Luenberger_Observer:
                                [np.zeros((3, 1))]])
         
         if load_L:
-            file_path = 'saveL.mat'
+            file_path = 'MPC-for-Quadrotors\saveL.mat'
             mat = scipy.io.loadmat(file_path)
             self.L = mat['L']
         else:
