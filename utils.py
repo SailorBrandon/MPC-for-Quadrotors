@@ -1,4 +1,3 @@
-from cProfile import label
 import quadrotor
 import controller
 import trajectory

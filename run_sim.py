@@ -62,7 +62,7 @@ if __name__=="__main__":
     '''Visualization'''
     visualizer = Visualizer(simu_time, simu_freq, ctrl_freq, real_trajectory, des_trajectory)
     visualizer.plot_tracking_performance()
-    visualizer.record_tracking_data()
+    # visualizer.record_tracking_data()
     try:
         if quad_controller.use_obsv == True:
             visualizer.plot_obsv_x(quad_controller.x_real, quad_controller.x_obsv)
