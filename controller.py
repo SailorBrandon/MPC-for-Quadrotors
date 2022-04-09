@@ -362,7 +362,7 @@ class Luenberger_Observer:
                                [np.zeros((3, 1))]])
         
         if load_L:
-            file_path = 'MPC-for-Quadrotors\saveL.mat'
+            file_path = 'saveL.mat'
             mat = scipy.io.loadmat(file_path)
             self.L = mat['L']
         else:
