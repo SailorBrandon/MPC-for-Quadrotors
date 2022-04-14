@@ -21,6 +21,7 @@ class Terminal_set:
         # self.Xf_nr = self.Xf
         self.Xf_nr = self.remove_redundancy()
         # self.LQR_control()
+        self.test_input_inbound(0.15)
 
     def terminal_set_cal(self):
         Ainf = np.zeros([0, self.Nx])
@@ -164,11 +165,11 @@ class Terminal_set:
 # print('Ainf_nr',Ter_set.Xf_nr[0])
 # print('binf_nr',Ter_set.Xf_nr[1])
 
-    def test_lya_decrease(self, P, Q, R, N=25):
-        A_inf, b_inf = self.Xf_nr
-        vertices = []
-        for i in range(A_inf.shape[0]):
-            obj = A_inf[i, :]
-            _, x = self.solve_linprog(obj, A_inf, b_inf)
-            vertices.append(x)
-        vertices = np.array(vertices)
+    # def test_lya_decrease(self, P, Q, R, N=25):
+    #     A_inf, b_inf = self.Xf_nr
+    #     vertices = []
+    #     for i in range(A_inf.shape[0]):
+    #         obj = A_inf[i, :]
+    #         _, x = self.solve_linprog(obj, A_inf, b_inf)
+    #         vertices.append(x)
+    #     vertices = np.array(vertices)
